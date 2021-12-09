@@ -1,0 +1,26 @@
+name: SaveTheKweebecs
+main: me.hugo.savethekweebecs.SaveTheKweebecs
+version: 1.0
+author: Hugo
+api-version: 1.17
+depend:
+  - ProtocolLib
+  - SkinsRestorer
+  - SlimeWorldManager
+
+commands:
+  stk:
+    description: Manage STK games
+    usage: /stk
+  enablegame:
+    description: Enable different global games.
+    usage: /enablegame <game>
+  disablegame:
+    description: Disable different global games.
+    usage: /disablegame <game>
+  defaultgame:
+    description: Change the default game player join when entering the server
+    usage: /defaultgame <game>
+  games:
+    description: Open the games menu from anywhere
+    usage: /games
