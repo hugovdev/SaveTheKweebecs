@@ -8,9 +8,11 @@ Important Features:
 * In-game economy system
 * Cosmetics like Banners and Outfits
 * Creative World
-* Team System with nametags, anti friendly-fire
+* Team System with nametags, skins and anti friendly-fire
 * NPC and Tracking System
-* Abstract game system to add and remove arenas as you want without any lag
+* Abstract map system to add and remove arenas as you want without any lag
 * Dynamic Menus
 * Spectator Mode for arenas
+* Ability to close and open global games and redirect the player base
+* Comfortable map setup system with menus
 * Much more...
