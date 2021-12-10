@@ -85,9 +85,8 @@ public class PlayerInteract implements Listener {
                 player.sendMessage("§cYou must be playing to use this item!");
             }
         } else if (itemOnHand.getType().name().contains("BANNER")) {
-            event.setCancelled(true);
-            Game game = main.getPlayerGame(player);
-            if (game == null && main.getPlayerManager().getGamePlayer(player).getCurrentGame() == GlobalGame.SAVE_THE_KWEEBECS) {
+            if (main.getPlayerGame(player) == null && main.getPlayerManager().getGamePlayer(player).getCurrentGame() == GlobalGame.SAVE_THE_KWEEBECS) {
+                event.setCancelled(true);
                 main.getPlayerManager().getGamePlayer(player).getBannerMenu().open(player);
             }
         } else if (itemOnHand.getItemMeta() != null && itemOnHand.getItemMeta().getDisplayName() != null && itemOnHand.getItemMeta().getDisplayName().contains("Kweebec Locator")) {
