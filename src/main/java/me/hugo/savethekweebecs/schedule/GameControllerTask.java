@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class GameControllerTask extends BukkitRunnable {
 
@@ -24,11 +25,13 @@ public class GameControllerTask extends BukkitRunnable {
         for (Game game : new ArrayList<>(main.getGames())) {
             int eventTime = game.getEventTime();
 
+            List<Player> playerList = new ArrayList<>(game.getPlayerList());
+
             if (game.getGameState() == GameState.INGAME) {
                 manageIngameEvents(game);
             } else if (game.getGameState() == GameState.STARTING) {
                 game.setEventTime(game.getEventTime() - 1);
-                for (Player player : game.getPlayerList())
+                for (Player player : playerList)
                     main.getPlayerManager().getGamePlayer(player).getPlayerBoard().set("Starting in §a" + eventTime + "s", 6);
 
                 if ((eventTime % 5 == 0 && eventTime != 0) || (eventTime < 5 && eventTime != 0)) {
@@ -58,7 +61,7 @@ public class GameControllerTask extends BukkitRunnable {
             }
         }
 
-        for (Player player : game.getPlayerList())
+        for (Player player : new ArrayList<>(game.getPlayerList()))
             main.getPlayerManager().getGamePlayer(player)
                     .getPlayerBoard().set(gameEvent.name + ": §a" + StringUtility.getDurationString(game.getEventTime()), 11);
 

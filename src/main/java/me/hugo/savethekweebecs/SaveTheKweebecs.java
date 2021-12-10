@@ -92,7 +92,7 @@ public class SaveTheKweebecs extends JavaPlugin {
         this.worldPropertyManager = new WorldPropertyManager();
         this.skinManager = new SkinManager();
 
-        this.bossBar = Bukkit.createBossBar("§e§lHYTALE THANKMAS", BarColor.YELLOW, BarStyle.SEGMENTED_6);;
+        this.bossBar = Bukkit.createBossBar("§e§lHYTALE THANKMAS", BarColor.YELLOW, BarStyle.SEGMENTED_6);
 
         slimePlugin = (SlimePlugin) Bukkit.getPluginManager().getPlugin("SlimeWorldManager");
 
@@ -244,7 +244,7 @@ public class SaveTheKweebecs extends JavaPlugin {
                 .setLoreWithWrap("&7Open a menu that lets you set up an arena." +
                         "\n\n&eClick to open!", 35).toItemStack();
 
-        this.arenaLeaveItem = new ItemBuilder(Material.BLUE_BED).setName("&cBack to Lobby &7(Right Click)").toItemStack();
+        this.arenaLeaveItem = new ItemBuilder(Material.RED_BED).setName("&cBack to Lobby &7(Right Click)").toItemStack();
     }
 
     public BossBar getBossBar() {

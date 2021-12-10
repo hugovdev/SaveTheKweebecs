@@ -26,6 +26,7 @@ import net.skinsrestorer.api.exception.SkinRequestException;
 import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
@@ -48,6 +49,7 @@ public class Game {
     private SaveTheKweebecs main;
 
     private final List<Player> playerList;
+    private final List<Player> spectatorList;
 
     private List<Player> kweebecPlayers;
     private List<Player> trorkPlayers;
@@ -91,6 +93,7 @@ public class Game {
          */
         this.uuid = UUID.randomUUID();
         this.playerList = new ArrayList<>();
+        this.spectatorList = new ArrayList<>();
         this.kweebecPlayers = new ArrayList<>();
         this.trorkPlayers = new ArrayList<>();
         this.kweebecNPCs = new ArrayList<>();
@@ -129,6 +132,7 @@ public class Game {
          */
         this.uuid = UUID.randomUUID();
         this.playerList = new ArrayList<>();
+        this.spectatorList = new ArrayList<>();
         this.kweebecPlayers = new ArrayList<>();
         this.trorkPlayers = new ArrayList<>();
         this.kweebecNPCs = new ArrayList<>();
@@ -160,6 +164,7 @@ public class Game {
         Load game info and simple variables.
          */
         this.playerList = new ArrayList<>();
+        this.spectatorList = new ArrayList<>();
         this.kweebecSpawns = new ArrayList<>();
         this.trorkSpawns = new ArrayList<>();
         this.kweebecNPCSpawns = new ArrayList<>();
@@ -177,7 +182,7 @@ public class Game {
     }
 
     public void resetGame(String teamWhoWon) {
-        for (Player player : playerList) {
+        for (Player player : new ArrayList<>(playerList)) {
             GamePlayer gamePlayer = main.getPlayerManager().getGamePlayer(player);
 
             HoverEvent hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(
@@ -201,6 +206,7 @@ public class Game {
             playerManager.sendToLobby(player);
         }
 
+        spectatorList.clear();
         playerList.clear();
         kweebecPlayers.clear();
         trorkPlayers.clear();
@@ -218,6 +224,7 @@ public class Game {
         gameMap.setWorld(world);
 
         world.setKeepSpawnInMemory(false);
+        world.setGameRule(GameRule.SPECTATORS_GENERATE_CHUNKS, false);
 
         if (firstTime) loadWorldLocations();
         else relocateLocations(gameMap.getWorld());
@@ -317,8 +324,36 @@ public class Game {
             player.sendMessage(StringUtility.format("&c&lSorry! &7This game is full! You can spectate once the game starts."));
         } else if (gameState == GameState.ENDING) {
             player.sendMessage(StringUtility.format("&c&lSorry! &7This game is already ending!"));
-        } else {
-            player.sendMessage(StringUtility.format("&c&lSorry! &7This game already started!"));
+        } else if (gameState == GameState.INGAME) {
+            playerList.add(player);
+            spectatorList.add(player);
+            main.setPlayerGame(player, this);
+            playerManager.preparePlayer(player, GameMode.SPECTATOR);
+            player.getInventory().setHeldItemSlot(0);
+            player.teleport(spectatorLocation);
+            player.sendMessage("§aYou joined as a §bSpectator§a!");
+
+            List<NPC> remainingK = new ArrayList<>(remainingKweebecs);
+
+            for (NPC npc : remainingK) {
+                npc.spawnNPC(player);
+                npc.setNameTagVisibility(player, false);
+            }
+
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    for (NPC npc : remainingK)
+                        npc.removeFromTabList(player);
+                }
+            }.runTaskLater(main, 30L);
+
+            player.sendTitle(StringUtility.format("&b&lSAVE THE KWEEBECS"),
+                    "Special Thankmas Event", 10, 20, 10);
+
+            playerManager.getGamePlayer(player).setBoard(this);
+            player.getInventory().setItem(8, main.getArenaLeaveItem());
+            updateGameIcon();
         }
     }
 
@@ -333,34 +368,40 @@ public class Game {
             playerManager.sendToLobby(player);
             updateTeamSelector(false);
         } else if (gameState == GameState.INGAME) {
-            if (trorkPlayers.size() == 0 || kweebecPlayers.size() == 0) {
-                sendGameMessage("&c&lA team has been eliminated. Game will be restarting...");
-                gameState = GameState.ENDING;
-                updateGameIcon();
+            if (spectatorList.contains(player)) {
+                spectatorList.remove(player);
+                player.sendMessage("§cYou left the arena!");
+                main.getDefaultGame().getClickAction().execute(player, ClickType.LEFT);
+            } else {
+                if (trorkPlayers.size() == 0 || kweebecPlayers.size() == 0) {
+                    sendGameMessage("&c&lA team has been eliminated. Game will be restarting...");
+                    gameState = GameState.ENDING;
+                    updateGameIcon();
 
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        for (Player player : getPlayerList()) {
-                            playerManager.getGamePlayer(player).setBoard(getGame());
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            for (Player player : new ArrayList<>(getPlayerList())) {
+                                playerManager.getGamePlayer(player).setBoard(getGame());
 
-                            try {
-                                main.getSkinsRestorerAPI().applySkin(new PlayerWrapper(player));
-                            } catch (SkinRequestException e) {
-                                e.printStackTrace();
+                                try {
+                                    main.getSkinsRestorerAPI().applySkin(new PlayerWrapper(player));
+                                } catch (SkinRequestException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }
-                    }
-                }.runTaskAsynchronously(main);
+                    }.runTaskAsynchronously(main);
 
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        resetGame("Nobody");
-                    }
-                }.runTaskLater(main, 40L);
-            } else {
-                player.damage(player.getHealth());
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            resetGame("Nobody");
+                        }
+                    }.runTaskLater(main, 40L);
+                } else {
+                    player.damage(player.getHealth());
+                }
             }
         }
 
@@ -389,6 +430,7 @@ public class Game {
                         joinGame(player);
                     } else if (gameState == GameState.INGAME) {
                         player.sendMessage("§cJoining started game...");
+                        joinGame(player);
                     } else {
                         player.sendMessage("§c§lSorry! §cThat map is currently §bending or resetting§c...");
                     }
@@ -423,13 +465,13 @@ public class Game {
     }
 
     public void sendGameMessage(String message) {
-        for (Player player : playerList) {
+        for (Player player : new ArrayList<>(playerList)) {
             player.sendMessage(StringUtility.format(message));
         }
     }
 
     public void sendTitleMessage(String title, String subTitle, int fadeIn, int stay, int fadeOut) {
-        for (Player player : playerList) {
+        for (Player player : new ArrayList<>(playerList)) {
             player.sendTitle(StringUtility.format(title), StringUtility.format(subTitle), fadeIn, stay, fadeOut);
         }
     }
@@ -442,7 +484,7 @@ public class Game {
     }
 
     public void sendSound(Sound sound) {
-        for (Player player : playerList) {
+        for (Player player : new ArrayList<>(playerList)) {
             player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
         }
     }
@@ -566,14 +608,14 @@ public class Game {
                 @Override
                 public void run() {
                     for (NPC npc : kweebecNPCs)
-                        npc.removeFromTabList(playerList);
+                        npc.removeFromTabList(new ArrayList<>(playerList));
                 }
             }.runTaskLater(main, 30L);
         } else {
             gameState = GameState.WAITING;
             sendGameMessage("&cMore players are needed to start playing!");
             eventTime = 30;
-            for (Player player : getPlayerList())
+            for (Player player : new ArrayList<>(playerList))
                 main.getPlayerManager().getGamePlayer(player).getPlayerBoard().set("Waiting...", 6);
         }
         updateGameIcon();
@@ -626,7 +668,7 @@ public class Game {
         int kweebecsSpawnIndex = 0;
         int trorksSpawnIndex = 0;
 
-        for (Player player : playerList) {
+        for (Player player : new ArrayList<>(playerList)) {
             player.closeInventory();
             playerManager.getGamePlayer(player).setBoard(this);
 
@@ -711,7 +753,7 @@ public class Game {
             @Override
             public void run() {
                 Location location = npc.getLocation();
-                npc.destroyNPC(playerList);
+                npc.destroyNPC(new ArrayList<>(playerList));
                 remainingKweebecs.remove(npc);
                 int savedKweebecs = kweebecNPCs.size() - remainingKweebecs.size();
 
@@ -744,11 +786,12 @@ public class Game {
                             for (Player player : new ArrayList<>(getPlayerList())) {
                                 playerManager.getGamePlayer(player).setBoard(getGame());
 
-                                try {
-                                    skinsRestorerAPI.applySkin(new PlayerWrapper(player));
-                                } catch (SkinRequestException e) {
-                                    e.printStackTrace();
-                                }
+                                if (!spectatorList.contains(player))
+                                    try {
+                                        skinsRestorerAPI.applySkin(new PlayerWrapper(player));
+                                    } catch (SkinRequestException e) {
+                                        e.printStackTrace();
+                                    }
                             }
                         }
                     }.runTaskAsynchronously(main);
@@ -827,6 +870,10 @@ public class Game {
 
     public int getMinPlayers() {
         return minPlayers;
+    }
+
+    public List<Player> getSpectatorList() {
+        return spectatorList;
     }
 
     public void setMinPlayers(int minPlayers) {

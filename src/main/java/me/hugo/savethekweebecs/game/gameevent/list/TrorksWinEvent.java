@@ -15,6 +15,8 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.ArrayList;
+
 public class TrorksWinEvent extends GameEventAction {
 
     @Override
@@ -29,14 +31,15 @@ public class TrorksWinEvent extends GameEventAction {
         new BukkitRunnable() {
             @Override
             public void run() {
-                for(Player player : game.getPlayerList()) {
+                for (Player player : new ArrayList<>(game.getPlayerList())) {
                     SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player).setBoard(game);
 
-                    try {
-                        skinsRestorerAPI.applySkin(new PlayerWrapper(player));
-                    } catch (SkinRequestException e) {
-                        e.printStackTrace();
-                    }
+                    if (!game.getSpectatorList().contains(player))
+                        try {
+                            skinsRestorerAPI.applySkin(new PlayerWrapper(player));
+                        } catch (SkinRequestException e) {
+                            e.printStackTrace();
+                        }
                 }
             }
         }.runTaskAsynchronously(SaveTheKweebecs.getPlugin());
@@ -50,15 +53,16 @@ public class TrorksWinEvent extends GameEventAction {
         new BukkitRunnable() {
             int counter = 0;
             FireworkEffect trorkWinEffect = FireworkEffect.builder().withColor(Color.RED, Color.ORANGE, Color.BLUE, Color.BLACK).withFade(Color.YELLOW).build();
+
             @Override
             public void run() {
-                if(counter == 8) {
+                if (counter == 8) {
                     cancel();
                     game.resetGame("Trorks");
                 } else {
                     new InstantFirework(trorkWinEffect, game.getSpectatorLocation());
                 }
-                counter ++;
+                counter++;
             }
         }.runTaskTimer(SaveTheKweebecs.getPlugin(), 10L, 15L);
     }

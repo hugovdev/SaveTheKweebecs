@@ -10,6 +10,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.ArrayList;
+
 public class ChatEvent implements Listener {
 
     @EventHandler
@@ -23,10 +25,10 @@ public class ChatEvent implements Listener {
 
         if (game != null) {
             if (game.getGameState() == GameState.INGAME) {
-                for (Player playerInGame : game.getPlayerList())
-                    playerInGame.sendMessage((game.getTrorkPlayers().contains(player) ? "§b[T] §7" : "§e[K] §7") + player.getName() + " §8» §7" + event.getMessage());
+                for (Player playerInGame : new ArrayList<>(game.getPlayerList()))
+                    playerInGame.sendMessage((game.getTrorkPlayers().contains(player) ? "§b[T] §7" : (game.getSpectatorList().contains(player) ? "§6[Spectator] §7" : "§e[K] §7")) + player.getName() + " §8» §7" + event.getMessage());
             } else {
-                for (Player playerInGame : game.getPlayerList())
+                for (Player playerInGame : new ArrayList<>(game.getPlayerList()))
                     playerInGame.sendMessage((player.isOp() ? "§c[Admin] §f" : "§7") + player.getName() + " §8» §7" + event.getMessage());
             }
         } else {

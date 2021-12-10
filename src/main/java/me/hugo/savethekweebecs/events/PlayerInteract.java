@@ -150,6 +150,20 @@ public class PlayerInteract implements Listener {
     }
 
     @EventHandler
+    public void onspectatorLeaveClick(InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player) {
+            Player player = (Player) event.getWhoClicked();
+
+            ItemStack itemStack = event.getCurrentItem();
+            if (itemStack == null || itemStack.getType() == Material.AIR) return;
+
+            if (itemStack.getType() == Material.RED_BED && player.getGameMode() == GameMode.SPECTATOR) {
+                main.getPlayerGame(player).leaveGame(player);
+            }
+        }
+    }
+
+    @EventHandler
     public void onClick(InventoryClickEvent event) {
         if (event.getView().getTopInventory().getHolder() instanceof MenuHandler) {
             event.setCancelled(true);

@@ -7,6 +7,8 @@ import me.hugo.savethekweebecs.player.GamePlayer;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+
 public class GoldFrenzyEvent extends GameEventAction {
 
     @Override
@@ -15,7 +17,7 @@ public class GoldFrenzyEvent extends GameEventAction {
         game.sendGameMessage("&e+&l50 &egold!");
         game.sendSound(Sound.ENTITY_ITEM_PICKUP);
 
-        for(Player player: game.getPlayerList()) {
+        for(Player player: new ArrayList<>(game.getPlayerList())) {
             GamePlayer gamePlayer = SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player);
             gamePlayer.setGold(gamePlayer.getGold() + 50);
             gamePlayer.getPlayerBoard().set("Gold: §e" + gamePlayer.getGold() + " ⛃", 6);
