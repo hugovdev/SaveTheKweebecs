@@ -14,7 +14,6 @@ import me.hugo.savethekweebecs.utils.StringUtility;
 import me.hugo.savethekweebecs.utils.gui.Icon;
 import me.hugo.savethekweebecs.utils.gui.MenuHandler;
 import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -223,8 +222,8 @@ public class Game {
         World world = Bukkit.getWorld(uuid.toString());
         gameMap.setWorld(world);
 
-        world.setKeepSpawnInMemory(false);
         world.setGameRule(GameRule.SPECTATORS_GENERATE_CHUNKS, false);
+        world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
 
         if (firstTime) loadWorldLocations();
         else relocateLocations(gameMap.getWorld());
@@ -384,11 +383,12 @@ public class Game {
                             for (Player player : new ArrayList<>(getPlayerList())) {
                                 playerManager.getGamePlayer(player).setBoard(getGame());
 
-                                try {
-                                    main.getSkinsRestorerAPI().applySkin(new PlayerWrapper(player));
-                                } catch (SkinRequestException e) {
-                                    e.printStackTrace();
-                                }
+                                if (!getSpectatorList().contains(player))
+                                    try {
+                                        main.getSkinsRestorerAPI().applySkin(new PlayerWrapper(player));
+                                    } catch (SkinRequestException e) {
+                                        e.printStackTrace();
+                                    }
                             }
                         }
                     }.runTaskAsynchronously(main);

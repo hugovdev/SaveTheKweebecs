@@ -168,6 +168,7 @@ public class SaveTheKweebecs extends JavaPlugin {
             world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
             world.setGameRule(GameRule.RANDOM_TICK_SPEED, 0);
             world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+            world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
 
             WorldBorder wb = world.getWorldBorder();
             wb.setCenter(0, 0);
