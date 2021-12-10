@@ -87,7 +87,7 @@ public class PlayerInteract implements Listener {
         } else if (itemOnHand.getType().name().contains("BANNER")) {
             event.setCancelled(true);
             Game game = main.getPlayerGame(player);
-            if (game == null) {
+            if (game == null && main.getPlayerManager().getGamePlayer(player).getCurrentGame() == GlobalGame.SAVE_THE_KWEEBECS) {
                 main.getPlayerManager().getGamePlayer(player).getBannerMenu().open(player);
             }
         } else if (itemOnHand.getItemMeta() != null && itemOnHand.getItemMeta().getDisplayName() != null && itemOnHand.getItemMeta().getDisplayName().contains("Kweebec Locator")) {
