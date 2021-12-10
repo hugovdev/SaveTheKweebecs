@@ -163,12 +163,8 @@ public class SaveTheKweebecs extends JavaPlugin {
             World world = Bukkit.createWorld(new WorldCreator("creative").type(WorldType.FLAT).generateStructures(false));
             world.setSpawnLocation(new Location(world, 0.5, 10, 0.5));
 
-            world.setTime(0);
-            world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
-            world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
-            world.setGameRule(GameRule.RANDOM_TICK_SPEED, 0);
-            world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
-            world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
+            freezeWorld(world);
+            freezeWorld(Bukkit.getWorld("world"));
 
             WorldBorder wb = world.getWorldBorder();
             wb.setCenter(0, 0);
@@ -177,6 +173,15 @@ public class SaveTheKweebecs extends JavaPlugin {
             new GameControllerTask(this).runTaskTimer(this, 0L, 20L);
             new ScoreboardAnimationTask("THANKMAS").runTaskTimerAsynchronously(this, 0L, 1L);
         }
+    }
+
+    private void freezeWorld(World world) {
+        world.setTime(0);
+        world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+        world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
+        world.setGameRule(GameRule.RANDOM_TICK_SPEED, 0);
+        world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+        world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
     }
 
     private void loadKweebecNPCHandler() {
