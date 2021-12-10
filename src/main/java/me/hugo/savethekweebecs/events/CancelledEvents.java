@@ -8,9 +8,7 @@ import me.hugo.savethekweebecs.player.GamePlayer;
 import me.hugo.savethekweebecs.utils.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import org.bukkit.entity.Arrow;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
@@ -90,8 +88,21 @@ public class CancelledEvents implements Listener {
 
     @EventHandler
     public void onEntityExplosion(EntityExplodeEvent event) {
-        if(event.getLocation().getWorld().getName().equalsIgnoreCase("creative")) {
+        if (event.getLocation().getWorld().getName().equalsIgnoreCase("creative")) {
             event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onItemFrameItemRemove(EntityDamageByEntityEvent event) {
+        if (event.getEntity() instanceof ItemFrame) {
+            Entity damager = event.getDamager();
+
+            if (damager instanceof Player) {
+                if (main.getPlayerManager().getGamePlayer((Player) damager).getCurrentGame() == GlobalGame.SAVE_THE_KWEEBECS) {
+                    event.setCancelled(true);
+                }
+            }
         }
     }
 
