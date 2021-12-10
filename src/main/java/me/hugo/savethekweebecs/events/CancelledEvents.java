@@ -14,10 +14,7 @@ import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityPickupItemEvent;
-import org.bukkit.event.entity.FoodLevelChangeEvent;
-import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
@@ -87,6 +84,13 @@ public class CancelledEvents implements Listener {
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event) {
         if (main.getPlayerManager().getGamePlayer(event.getPlayer()).getCurrentGame() == GlobalGame.SAVE_THE_KWEEBECS) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEntityExplosion(EntityExplodeEvent event) {
+        if(event.getLocation().getWorld().getName().equalsIgnoreCase("creative")) {
             event.setCancelled(true);
         }
     }
