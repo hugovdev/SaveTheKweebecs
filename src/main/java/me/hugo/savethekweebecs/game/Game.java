@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import com.grinderwolf.swm.api.world.SlimeWorld;
 import me.hugo.savethekweebecs.SaveTheKweebecs;
 import me.hugo.savethekweebecs.game.gametype.GameTypes;
+import me.hugo.savethekweebecs.globalgame.GlobalGame;
 import me.hugo.savethekweebecs.player.GamePlayer;
 import me.hugo.savethekweebecs.player.PlayerManager;
 import me.hugo.savethekweebecs.utils.InstantFirework;
@@ -202,7 +203,7 @@ public class Game {
                     .append(this.mapName).color(ChatColor.GREEN).append(" has finished! Wanna see the stats? ").color(ChatColor.YELLOW).append("HOVER").color(ChatColor.YELLOW).bold(true).event(hoverEvent).create());
 
             player.spigot().sendMessage(message);
-            playerManager.sendToLobby(player);
+            GlobalGame.SAVE_THE_KWEEBECS.getClickAction().execute(player, ClickType.LEFT);
         }
 
         spectatorList.clear();
@@ -364,7 +365,7 @@ public class Game {
         if (gameState == GameState.WAITING || gameState == GameState.STARTING) {
             sendGameMessage("&a" + player.getName() + " &ehas left! (&b" + playerList.size() + "&e/&b" + maxPlayers + "&e)");
 
-            playerManager.sendToLobby(player);
+            GlobalGame.SAVE_THE_KWEEBECS.getClickAction().execute(player, ClickType.LEFT);
             updateTeamSelector(false);
         } else if (gameState == GameState.INGAME) {
             if (spectatorList.contains(player)) {
