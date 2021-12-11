@@ -69,6 +69,13 @@ public class CancelledEvents implements Listener {
     }
 
     @EventHandler
+    public void onEntitySpawn(EntitySpawnEvent event) {
+        if(event.getEntity() instanceof Wither) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
     public void onEntityDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player)) return;
 
