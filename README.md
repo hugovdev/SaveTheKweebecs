@@ -1,5 +1,5 @@
 # SaveTheKweebecs
-Minigame made exclusively for Hytale Thankmas 2021
+Minigame made exclusively for Hytale Thankmas 2021 and beyond.
 
 ## :sunny: Plugin Features (2021)
 * Match Stats Summary
@@ -15,7 +15,7 @@ Minigame made exclusively for Hytale Thankmas 2021
 * Spectator Mode for arenas
 * Ability to close and open global games and redirect the player base
 * Comfortable map setup system with menus
-* Much more...
+And much more...
 
 ## :+1: Dependencies
 * <a href="https://github.com/dmulloy2/ProtocolLib">ProtocolLib</a>
@@ -26,6 +26,7 @@ Minigame made exclusively for Hytale Thankmas 2021
 Thanks to:
 * The Hytale Community
 * Hypixel Studios
+* <a href="https://github.com/MinusKube/Netherboard">NetherboardAPI</a>
 
 ## 📰 To-Do list for Thankmas 2022:
 * More cool maps
