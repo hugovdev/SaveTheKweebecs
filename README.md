@@ -1,7 +1,7 @@
 # SaveTheKweebecs
 Minigame made exclusively for Hytale Thankmas 2021
 
-Important Features:
+## :telescope: Compatibility
 * Match Stats Summary
 * Animated Scoreboards
 * Abilities
@@ -16,6 +16,10 @@ Important Features:
 * Ability to close and open global games and redirect the player base
 * Comfortable map setup system with menus
 * Much more...
+
+## :telescope: Dependencies
+* <a href="https://github.com/dmulloy2/ProtocolLib">ProtocolLib</a>
+* <a href="https://github.com/SkinsRestorer/SkinsRestorerX">SkinsRestorer</a>
 
 To-Do list for Thankmas 2022:
 * More cool maps
