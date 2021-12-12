@@ -1,7 +1,7 @@
 # SaveTheKweebecs
 Minigame made exclusively for Hytale Thankmas 2021
 
-## :telescope: Compatibility
+## :sunny: Plugin Features (2021)
 * Match Stats Summary
 * Animated Scoreboards
 * Abilities
@@ -17,11 +17,17 @@ Minigame made exclusively for Hytale Thankmas 2021
 * Comfortable map setup system with menus
 * Much more...
 
-## :telescope: Dependencies
+## :+1: Dependencies
 * <a href="https://github.com/dmulloy2/ProtocolLib">ProtocolLib</a>
 * <a href="https://github.com/SkinsRestorer/SkinsRestorerX">SkinsRestorer</a>
+* <a href="https://github.com/Paul19988/Advanced-Slime-World-Manager">AdvancedSlimeWorldManager</a>
 
-To-Do list for Thankmas 2022:
+## 👪 Credits
+Thanks to:
+* The Hytale Community
+* Hypixel Studios
+
+## 📰 To-Do list for Thankmas 2022:
 * More cool maps
 * Update to latest version of Minecraft
 * Remove unused classes and clean-up the code
