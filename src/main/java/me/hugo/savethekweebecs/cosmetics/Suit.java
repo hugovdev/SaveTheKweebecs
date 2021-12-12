@@ -52,10 +52,10 @@ public enum Suit {
             new ItemBuilder(Material.LEATHER_LEGGINGS).setLeatherArmorColor(Color.BLACK).setName("§ePigeon Leggings").hideEnch().toItemStack(),
             new ItemBuilder(Material.LEATHER_BOOTS).setLeatherArmorColor(Color.GRAY).setName("§ePigeon Boots").hideEnch().toItemStack(), new ItemBuilder(Material.PLAYER_HEAD).setSkullTexture("http://textures.minecraft.net/texture/1feebeafbd71ebc23311cf7af66dd1cef5ac677d34b0feac71dbb5d04a61e54e").toItemStack()),
     GAIA("Gaia Suit",
-            new ItemBuilder(Material.PLAYER_HEAD).setSkullTexture("http://textures.minecraft.net/texture/33bd045868b2301a6a520896fe496f52992f5435cf6464848024a4ffdcd6f9d5").setName("§aGaia Suit").toItemStack(),
+            new ItemBuilder(Material.PLAYER_HEAD).setSkullTexture("http://textures.minecraft.net/texture/a23fbea0b2d2c5713caa75242d996282c0c7f3407ae99b3aff974440ea3123ae").setName("§aGaia Suit").toItemStack(),
             new ItemBuilder(Material.LEATHER_CHESTPLATE).setLeatherArmorColor(Color.LIME).setName("§aGaia Chestplate").hideEnch().toItemStack(),
             new ItemBuilder(Material.LEATHER_LEGGINGS).setLeatherArmorColor(Color.LIME).setName("§aGaia Leggings").hideEnch().toItemStack(),
-            new ItemBuilder(Material.LEATHER_BOOTS).setLeatherArmorColor(Color.WHITE).setName("§aGaia Boots").hideEnch().toItemStack(), new ItemBuilder(Material.PLAYER_HEAD).setSkullTexture("http://textures.minecraft.net/texture/33bd045868b2301a6a520896fe496f52992f5435cf6464848024a4ffdcd6f9d5").toItemStack()),
+            new ItemBuilder(Material.LEATHER_BOOTS).setLeatherArmorColor(Color.WHITE).setName("§aGaia Boots").hideEnch().toItemStack(), new ItemBuilder(Material.PLAYER_HEAD).setSkullTexture("http://textures.minecraft.net/texture/a23fbea0b2d2c5713caa75242d996282c0c7f3407ae99b3aff974440ea3123ae").toItemStack()),
     VARYN("Varyn Suit",
             new ItemBuilder(Material.PLAYER_HEAD).setSkullTexture("http://textures.minecraft.net/texture/ad7354929d1bc74f2c471b0040fcbf19b74c10593a76eb2d50eff9b4b030c3eb").setName("§cVaryn Suit").toItemStack(),
             new ItemBuilder(Material.LEATHER_CHESTPLATE).setLeatherArmorColor(Color.PURPLE).setName("§cVaryn Chestplate").hideEnch().toItemStack(),
@@ -90,8 +90,6 @@ public enum Suit {
         this.icon = icon;
 
         this.clickAction = getClickAction();
-        ;
-
 
         this.SELECTED_ICON = getSuitIcon(true);
         this.NOT_SELECTED_ICON = getSuitIcon(false);

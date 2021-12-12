@@ -178,7 +178,7 @@ public class Game {
          */
         gameState = GameState.WAITING;
         eventIndex = 0;
-        eventTime = 30;
+        eventTime = 60;
     }
 
     public void resetGame(String teamWhoWon) {
@@ -267,7 +267,7 @@ public class Game {
          */
         gameState = GameState.WAITING;
         eventIndex = 0;
-        eventTime = 30;
+        eventTime = 60;
         remainingKweebecs = new ArrayList<>(kweebecNPCs);
 
         if (firstTime) {
@@ -378,21 +378,16 @@ public class Game {
                     gameState = GameState.ENDING;
                     updateGameIcon();
 
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            for (Player player : new ArrayList<>(getPlayerList())) {
-                                playerManager.getGamePlayer(player).setBoard(getGame());
+                    for (Player players : new ArrayList<>(getPlayerList())) {
+                        playerManager.getGamePlayer(players).setBoard(getGame());
 
-                                if (!getSpectatorList().contains(player))
-                                    try {
-                                        main.getSkinsRestorerAPI().applySkin(new PlayerWrapper(player));
-                                    } catch (SkinRequestException e) {
-                                        e.printStackTrace();
-                                    }
+                        if (!getSpectatorList().contains(players))
+                            try {
+                                main.getSkinsRestorerAPI().applySkin(new PlayerWrapper(players));
+                            } catch (SkinRequestException e) {
+                                e.printStackTrace();
                             }
-                        }
-                    }.runTaskAsynchronously(main);
+                    }
 
                     new BukkitRunnable() {
                         @Override
@@ -781,21 +776,16 @@ public class Game {
 
                     updateGameIcon();
 
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            for (Player player : new ArrayList<>(getPlayerList())) {
-                                playerManager.getGamePlayer(player).setBoard(getGame());
+                    for (Player player : new ArrayList<>(getPlayerList())) {
+                        playerManager.getGamePlayer(player).setBoard(getGame());
 
-                                if (!spectatorList.contains(player))
-                                    try {
-                                        skinsRestorerAPI.applySkin(new PlayerWrapper(player));
-                                    } catch (SkinRequestException e) {
-                                        e.printStackTrace();
-                                    }
+                        if (!spectatorList.contains(player))
+                            try {
+                                skinsRestorerAPI.applySkin(new PlayerWrapper(player));
+                            } catch (SkinRequestException e) {
+                                e.printStackTrace();
                             }
-                        }
-                    }.runTaskAsynchronously(main);
+                    }
 
                     new BukkitRunnable() {
                         int counter = 0;

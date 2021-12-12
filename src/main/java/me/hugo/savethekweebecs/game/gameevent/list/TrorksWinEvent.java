@@ -28,21 +28,16 @@ public class TrorksWinEvent extends GameEventAction {
         game.updateGameIcon();
         SkinsRestorerAPI skinsRestorerAPI = SaveTheKweebecs.getPlugin().getSkinsRestorerAPI();
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                for (Player player : new ArrayList<>(game.getPlayerList())) {
-                    SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player).setBoard(game);
+        for (Player player : new ArrayList<>(game.getPlayerList())) {
+            SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player).setBoard(game);
 
-                    if (!game.getSpectatorList().contains(player))
-                        try {
-                            skinsRestorerAPI.applySkin(new PlayerWrapper(player));
-                        } catch (SkinRequestException e) {
-                            e.printStackTrace();
-                        }
+            if (!game.getSpectatorList().contains(player))
+                try {
+                    skinsRestorerAPI.applySkin(new PlayerWrapper(player));
+                } catch (SkinRequestException e) {
+                    e.printStackTrace();
                 }
-            }
-        }.runTaskAsynchronously(SaveTheKweebecs.getPlugin());
+        }
 
         for (NPC npc : game.getRemainingKweebecs()) npc.destroyNPC(game.getPlayerList());
 
