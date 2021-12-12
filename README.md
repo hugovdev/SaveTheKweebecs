@@ -16,3 +16,14 @@ Important Features:
 * Ability to close and open global games and redirect the player base
 * Comfortable map setup system with menus
 * Much more...
+
+To-Do list for Thankmas 2022:
+* More cool maps
+* Update to latest version of Minecraft
+* Remove unused classes and clean-up the code
+* Fix some performance issues (might be fixed)
+* Rematch option
+* New items, abilities and shop options
+* Balance current maps
+* New Lobby with buildings of the creative server
+* More faction type fights (?)
