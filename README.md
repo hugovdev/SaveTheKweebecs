@@ -15,6 +15,7 @@ Minigame made exclusively for Hytale Thankmas 2021 and beyond.
 * Spectator Mode for arenas
 * Ability to close and open global games and redirect the player base
 * Comfortable map setup system with menus
+
 And much more...
 
 ## :+1: Dependencies
