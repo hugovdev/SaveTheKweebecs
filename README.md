@@ -39,3 +39,6 @@ Thanks to:
 * Balance current maps
 * New Lobby with buildings of the creative server
 * More faction type fights (?)
+* "I'm ready" system to start games (?)
+* Ability to join game when it has started (?)
+* Ability to decide to spectate the game before it starts
