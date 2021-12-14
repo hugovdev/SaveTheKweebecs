@@ -1,5 +1,5 @@
 # SaveTheKweebecs
-Minigame made exclusively for Hytale Thankmas 2021 and beyond.
+Minecraft Minigame made exclusively for Hytale Thankmas 2021 and beyond.
 
 ## :sunny: Plugin Features (2021)
 * Match Stats Summary
