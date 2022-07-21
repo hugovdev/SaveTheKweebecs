@@ -1,6 +1,8 @@
 # SaveTheKweebecs
 Minecraft Minigame made exclusively for Hytale Thankmas 2021 and beyond.
 
+Warning: This code is outdated and not recommended for public use. This was once a minigame for a closed event with a closed environment.
+
 ## :sunny: Plugin Features (2021)
 * Match Stats Summary
 * Animated Scoreboards
