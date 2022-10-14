@@ -1,6 +1,5 @@
 package me.hugo.savethekweebecs.game;
 
-import com.google.inject.Inject;
 import com.grinderwolf.swm.api.world.SlimeWorld;
 import me.hugo.savethekweebecs.SaveTheKweebecs;
 import me.hugo.savethekweebecs.game.gametype.GameTypes;
@@ -45,7 +44,6 @@ public class Game {
     private GameMap gameMap;
     private SlimeWorld slimeWorld;
 
-    @Inject
     private SaveTheKweebecs main;
 
     private final List<Player> playerList;
@@ -81,7 +79,6 @@ public class Game {
 
     private ItemStack arenaSelectorItemCache;
 
-    @Inject
     public Game(GameMap gameMap, SaveTheKweebecs main) {
         main.getGames().add(this);
         this.main = main;
@@ -120,7 +117,6 @@ public class Game {
         loadSlimeWorld(true);
     }
 
-    @Inject
     public Game(GameMap gameMap, SaveTheKweebecs main, String mapName) {
         main.getGames().add(this);
         this.main = main;

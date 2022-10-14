@@ -6,7 +6,6 @@ import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
-import com.google.inject.Injector;
 import com.grinderwolf.swm.api.SlimePlugin;
 import me.hugo.savethekweebecs.commands.*;
 import me.hugo.savethekweebecs.events.*;
@@ -79,9 +78,6 @@ public class SaveTheKweebecs extends JavaPlugin {
     @Override
     public void onEnable() {
         this.main = this;
-        SaveTheKweebecsModule module = new SaveTheKweebecsModule(this);
-        Injector injector = module.createInjector();
-        injector.injectMembers(this);
 
         this.defaultGame = GlobalGame.SAVE_THE_KWEEBECS;
         this.kitManager = new KitManager();

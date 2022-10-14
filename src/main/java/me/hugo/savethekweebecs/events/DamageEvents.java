@@ -1,6 +1,5 @@
 package me.hugo.savethekweebecs.events;
 
-import com.google.inject.Inject;
 import me.hugo.savethekweebecs.SaveTheKweebecs;
 import me.hugo.savethekweebecs.game.Game;
 import me.hugo.savethekweebecs.game.GameState;
@@ -22,10 +21,8 @@ import java.util.UUID;
 
 public class DamageEvents implements Listener {
 
-    @Inject
     private SaveTheKweebecs main;
 
-    @Inject
     public DamageEvents(SaveTheKweebecs main) {
         this.main = main;
     }
