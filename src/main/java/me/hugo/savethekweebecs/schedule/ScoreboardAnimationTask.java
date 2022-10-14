@@ -26,7 +26,7 @@ public class ScoreboardAnimationTask extends BukkitRunnable {
         List<ScoreboardTitle> titleList = new ArrayList<>();
         titleList.add(new ScoreboardTitle("§b§l" + title, 100));
         for (int i = 0; i < title.length(); i++) {
-            String titleResult = (i == 0 ? "" : "§f§l" + title.substring(0, i)) + "§3§l" + title.charAt(i) + ((i + 1) != title.length() ? "§b§l" + title.substring(i + 1, title.length()) : "");
+            String titleResult = (i == 0 ? "" : "§f§l" + title.substring(0, i)) + "§3§l" + title.charAt(i) + ((i + 1) != title.length() ? "§b§l" + title.substring(i + 1) : "");
             titleList.add(new ScoreboardTitle(titleResult, 2));
         }
         titleList.add(new ScoreboardTitle("§f§l" + title, 5));

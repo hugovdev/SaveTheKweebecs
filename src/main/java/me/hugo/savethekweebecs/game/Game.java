@@ -247,10 +247,10 @@ public class Game {
 
         for (Location location : kweebecNPCSpawns) {
             NPC npc = new NPC(location, "Kweebec" + kweebecId);
-            npc.setPing(NPC.Ping.FOUR_BARS);
+            npc.setPing(playerList, NPC.Ping.FIVE_BARS);
             npc.setSkin(new NPC.SkinTextures("ewogICJ0aW1lc3RhbXAiIDogMTYzMzk3NTk2ODExMCwKICAicHJvZmlsZUlkIiA6ICIyY2ZlNGVkYmU5MjQ0NTdjYWQyMWZiNGRlNDdjY2E4MiIsCiAgInByb2ZpbGVOYW1lIiA6ICJIdWdvR2FtZXJTdHlsZSIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS9mYTY2NDc5OTk3Yjk4ODc0YzY1ZjZhMDhkYmZiNmMzMjM4MGZlZDBhYTI3YWY1OGNiMWM2NmNhYmVkNWRhMjgxIiwKICAgICAgIm1ldGFkYXRhIiA6IHsKICAgICAgICAibW9kZWwiIDogInNsaW0iCiAgICAgIH0KICAgIH0KICB9Cn0=",
                     "NCxWo5drSlsTCTMMZFEhmoTUO0BHn+48XHezFn2ZkZ+J89+1heI9kR3tHf9SR5MpK1kryXX9pEmP90OOWsCEZZGuUIdcSZlkwLsiXWXGp3dlZe0uDwIFVnkAAhsHkinf4meJOUIbUTieSD/Qxiv5cyXVvIgNwXnpz3wGszSXiU1mgjAHd6GwXWqDD/kjkNlwGGEC2qDIKM/ZLNYyNZyDCwJnDX4MVpFvTHIvtEehujg2hW8iQD2kqzbB/0podNx9FDVBz69SoZ5W0pyUtFNeWYED0zZjAVk/Dg7JnYk3YNOgzHhFxv0yvzRBA7y0+k4Tpbfe9w7wV8XrPNfmhwDLEmB6HSosWsZcYZUSr8PClH5HyN5/DlKbSUZQ0CMCSPO9kpVQAnQgdRLwtPKdFZ9c5Hi2bU1DlLbTFs+vJL/NfKnL8OcwyjxjceWeShI26CQqqUyan/pM7ti4Ih6jsh+z+2vsqfxJ1RvdLQgi7KhX13GCjPAyZaVW+OBifuseRQa0eVsyyL1Vu42/oC+5K/zhxheR/1pk2+sj3zni8AOo6yS5Ds5CJxqqeNLFEe54U6rFrw5QhCXB/p2dyYjRIEjk0eIulqn09kWWZMvblXw4xPMEOA4DtPP5+7M1xdDujiU0oiikl2SWRpZa9lF6IO0cl40SFJBnX9t4PZW3DKpn6/8="));
-            npc.setGameMode(NPC.Gamemode.SURVIVAL);
+            npc.setGameMode(playerList, NPC.GameMode.SURVIVAL);
 
             kweebecNPCs.add(npc);
             main.getNpcManager().registerNPC(npc);
@@ -337,7 +337,7 @@ public class Game {
 
             for (NPC npc : remainingK) {
                 npc.spawnNPC(player);
-                npc.setNameTagVisibility(player, false);
+                npc.setTeamFeatures(player, new NPC.TeamFeatures(false, false, NPC.GlowColor.YELLOW));
             }
 
             new BukkitRunnable() {
@@ -697,7 +697,7 @@ public class Game {
 
             for (NPC npc : kweebecNPCs) {
                 npc.spawnNPC(player);
-                npc.setNameTagVisibility(player, false);
+                npc.setTeamFeatures(player, new NPC.TeamFeatures(false, false, NPC.GlowColor.YELLOW));
             }
 
             player.getInventory().setHelmet(playerManager.getGamePlayer(player).getSelectedBanner().getBanner());

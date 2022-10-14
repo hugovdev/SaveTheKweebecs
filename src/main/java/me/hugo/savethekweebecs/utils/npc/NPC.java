@@ -4,6 +4,10 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.datafixers.util.Pair;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
+import net.minecraft.EnumChatFormat;
 import net.minecraft.core.BlockPosition;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.PacketDataSerializer;
@@ -14,6 +18,7 @@ import net.minecraft.network.syncher.DataWatcher;
 import net.minecraft.network.syncher.DataWatcherObject;
 import net.minecraft.network.syncher.DataWatcherRegistry;
 import net.minecraft.network.syncher.DataWatcherSerializer;
+import net.minecraft.world.EnumHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityPose;
 import net.minecraft.world.entity.EntityTypes;
@@ -27,53 +32,47 @@ import net.minecraft.world.scores.ScoreboardTeamBase;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_17_R1.CraftServer;
-import org.bukkit.craftbukkit.v1_17_R1.CraftWorld;
-import org.bukkit.craftbukkit.v1_17_R1.entity.CraftParrot;
-import org.bukkit.craftbukkit.v1_17_R1.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_17_R1.inventory.CraftItemStack;
-import org.bukkit.craftbukkit.v1_17_R1.util.CraftChatMessage;
+import org.bukkit.craftbukkit.v1_19_R1.CraftServer;
+import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_19_R1.entity.CraftParrot;
+import org.bukkit.craftbukkit.v1_19_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_19_R1.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.v1_19_R1.util.CraftChatMessage;
 import org.bukkit.entity.Parrot;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class NPC {
 
     private static AtomicInteger atomicInteger;
-    private final String hideTeam;
+
     private final int entityID;
-    private GameProfile profile;
-    private final NPCMetaData metadata = new NPCMetaData();
     private final Location location;
-    private Ping ping = Ping.FIVE_BARS;
-    private Gamemode gamemode = Gamemode.CREATIVE;
-    private String displayName;
+    private GameProfile profile;
+    private MetaData metadata = new MetaData();
 
     static {
         try {
-            Field field = Entity.class.getDeclaredField("b");
+            Field field = Entity.class.getDeclaredField("c");
             field.setAccessible(true);
             atomicInteger = (AtomicInteger) field.get(null);
         } catch (NoSuchFieldException | IllegalAccessException e) {
@@ -83,274 +82,230 @@ public class NPC {
 
     public NPC(UUID uuid, Location location, String displayName) {
         this.entityID = atomicInteger.incrementAndGet();
-
         this.profile = new GameProfile(uuid, displayName);
         this.location = location;
-        this.displayName = displayName;
-        this.hideTeam = "hide-" + Integer.toHexString(ThreadLocalRandom.current().nextInt(0, Integer.MAX_VALUE));
     }
 
     public NPC(Location location, String displayName) {
         this(UUID.randomUUID(), location, displayName);
     }
 
-    public void spawnNPC(Collection<Player> players) {
-        players.forEach(this::spawnNPC);
+    public void spawnNPC(Collection<? extends Player> receivers) {
+        receivers.forEach(this::spawnNPC);
     }
 
-    public void spawnNPC(Player player) {
-        this.addToTabList(player);
-        this.sendPacket(player, this.getEntitySpawnPacket());
-        this.updateMetadata(player);
+    public void spawnNPC(Player receiver) {
+        this.addToTabList(receiver);
+        this.sendPacket(receiver, this.getEntitySpawnPacket());
+        this.updateMetadata(receiver);
     }
 
-    public void destroyNPC(Collection<Player> players) {
-        players.forEach(this::destroyNPC);
+    public void destroyNPC(Collection<? extends Player> receivers) {
+        receivers.forEach(this::destroyNPC);
     }
 
-    public void destroyNPC(Player player) {
-        this.sendPacket(player, this.getPlayerInfoPacket(PlayerInfo.REMOVE_PLAYER));
-        this.sendPacket(player, this.getEntityDestroyPacket());
+    public void destroyNPC(Player receiver) {
+        this.sendPacket(receiver, this.getPlayerInfoPacket(PlayerInfo.REMOVE_PLAYER));
+        this.sendPacket(receiver, this.getEntityDestroyPacket());
     }
 
-    public void reloadNPC(Collection<Player> players) {
-        players.forEach(this::reloadNPC);
+    public void reloadNPC(Collection<? extends Player> receivers) {
+        receivers.forEach(this::reloadNPC);
     }
 
-    public void reloadNPC(Player player) {
-        this.destroyNPC(player);
-        this.spawnNPC(player);
+    public void reloadNPC(Player receiver) {
+        this.destroyNPC(receiver);
+        this.spawnNPC(receiver);
     }
 
-    public void teleportNPC(Collection<Player> players, Location location, boolean onGround) {
-        players.forEach(p->this.teleportNPC(p, location, onGround));
+    public void teleportNPC(Collection<? extends Player> receivers, Location location, boolean onGround) {
+        receivers.forEach(receiver -> this.teleportNPC(receiver, location, onGround));
     }
 
-    public void teleportNPC(Player player, Location location, boolean onGround) {
+    public void teleportNPC(Player receiver, Location location, boolean onGround) {
         this.location.setX(location.getX());
         this.location.setY(location.getY());
         this.location.setZ(location.getZ());
         this.location.setPitch(location.getPitch());
         this.location.setYaw(location.getYaw());
-        this.sendPacket(player, this.getEntityTeleportPacket(onGround));
-        this.rotateHead(player, location.getPitch(), location.getYaw());
+        this.rotateHead(receiver, location.getPitch(), location.getYaw(), true);
+        this.sendPacket(receiver, this.getEntityTeleportPacket(onGround));
     }
 
-    public void updateMetadata(Collection<Player> players) {
-        players.forEach(this::updateMetadata);
+    public void updateMetadata(Collection<? extends Player> receivers) {
+        receivers.forEach(this::updateMetadata);
     }
 
-    public void updateMetadata(Player player) {
-        this.sendPacket(player, this.getEntityMetadataPacket());
+    public void updateMetadata(Player receiver) {
+        this.sendPacket(receiver, this.getEntityMetadataPacket());
     }
 
-    public void updateGameMode(Collection<Player> players) {
-        players.forEach(this::updateGameMode);
+    public void updateGameMode(Collection<? extends Player> receivers) {
+        receivers.forEach(this::updateGameMode);
     }
 
-    public void updateGameMode(Player player) {
-        this.sendPacket(player, this.getPlayerInfoPacket(PlayerInfo.UPDATE_GAME_MODE));
+    public void updateGameMode(Player receiver) {
+        this.sendPacket(receiver, this.getPlayerInfoPacket(PlayerInfo.UPDATE_GAME_MODE));
     }
 
-    public void updatePing(Collection<Player> players) {
-        players.forEach(this::updatePing);
+    public void setPing(Collection<? extends Player> receivers, Ping ping) {
+        receivers.forEach(receiver -> this.setPing(receiver, ping));
     }
 
-    public void updatePing(Player player) {
-        this.sendPacket(player, this.getPlayerInfoPacket(PlayerInfo.UPDATE_LATENCY));
+    public void setPing(Player receiver, Ping ping) {
+        this.sendPacket(receiver, this.getUpdatePlayerInfoPacket(PlayerInfo.UPDATE_LATENCY, ping));
     }
 
-    public void updateTabListName(Collection<Player> players) {
-        players.forEach(this::updateTabListName);
+    public void setGameMode(Collection<? extends Player> receivers, GameMode gameMode) {
+        receivers.forEach(receiver -> this.setGameMode(receiver, gameMode));
     }
 
-    public void updateTabListName(Player player) {
-        this.sendPacket(player, this.getPlayerInfoPacket(PlayerInfo.UPDATE_DISPLAY_NAME));
+    public void setGameMode(Player receiver, GameMode gameMode) {
+        this.sendPacket(receiver, this.getUpdatePlayerInfoPacket(PlayerInfo.UPDATE_GAME_MODE, gameMode));
     }
 
-    public void removeFromTabList(Collection<Player> players) {
-        players.forEach(this::removeFromTabList);
+    public void setTabListName(Collection<? extends Player> receivers, String displayName) {
+        receivers.forEach(receiver -> this.setTabListName(receiver, displayName));
     }
 
-    public void removeFromTabList(Player player) {
-        this.sendPacket(player, this.getPlayerInfoPacket(PlayerInfo.REMOVE_PLAYER));
+    public void setTabListName(Player receiver, String displayName) {
+        this.sendPacket(receiver, this.getUpdatePlayerInfoPacket(PlayerInfo.UPDATE_DISPLAY_NAME, displayName));
     }
 
-    public void addToTabList(Collection<Player> players) {
-        players.forEach(this::addToTabList);
+    public void removeFromTabList(Collection<? extends Player> receivers) {
+        receivers.forEach(this::removeFromTabList);
     }
 
-    public void addToTabList(Player player) {
-        this.sendPacket(player, this.getPlayerInfoPacket(PlayerInfo.ADD_PLAYER));
+    public void removeFromTabList(Player receiver) {
+        this.sendPacket(receiver, this.getPlayerInfoPacket(PlayerInfo.REMOVE_PLAYER));
     }
 
-    public void playAnimation(Collection<Player> players, Animation animation) {
-        players.forEach(p->this.playAnimation(p, animation));
+    public void addToTabList(Collection<? extends Player> receivers) {
+        receivers.forEach(this::addToTabList);
     }
 
-    public void playAnimation(Player player, Animation animation) {
-        this.sendPacket(player, this.getEntityAnimationPacket(animation));
+    public void addToTabList(Player receiver) {
+        this.sendPacket(receiver, this.getPlayerInfoPacket(PlayerInfo.ADD_PLAYER));
     }
 
-    public void lookAtPlayer(Collection<Player> players, Player target) {
-        players.forEach(p->this.lookAtPlayer(p, target));
+    public void playAnimation(Collection<? extends Player> receivers, Animation animation) {
+        receivers.forEach(receiver -> this.playAnimation(receiver, animation));
     }
 
-    public void lookAtPlayer(Player player, Player target) {
-        this.lookAtPoint(player, target.getEyeLocation());
+    public void playAnimation(Player receiver, Animation animation) {
+        this.sendPacket(receiver, this.getEntityAnimationPacket(animation));
     }
 
-    public void lookAtPoint(Collection<Player> players, Location location) {
-        players.forEach(p->this.lookAtPoint(p, location));
+    public void lookAtPlayer(Collection<? extends Player> receivers, Player target) {
+        receivers.forEach(receiver -> this.lookAtPlayer(receiver, target));
     }
 
-    public void lookAtPoint(Player player, Location location) {
+    public void lookAtPlayer(Player receiver, Player target) {
+        this.lookAtPoint(receiver, target.getEyeLocation());
+    }
+
+    public void lookAtPoint(Collection<? extends Player> receivers, Location location) {
+        receivers.forEach(receiver -> this.lookAtPoint(receiver, location));
+    }
+
+    public void lookAtPoint(Player receiver, Location location) {
         Location eyeLocation = this.getEyeLocation();
-        float yaw = (float) Math.toDegrees(Math.atan2(location.getZ() - eyeLocation.getZ(), location.getX()-eyeLocation.getX())) - 90;
-        yaw = (float) (yaw + Math.ceil( -yaw / 360 ) * 360);
-
-        float deltaXZ = (float) Math.sqrt(Math.pow(eyeLocation.getX()-location.getX(), 2) + Math.pow(eyeLocation.getZ()-location.getZ(), 2));
-        float pitch = (float) Math.toDegrees(Math.atan2(deltaXZ, location.getY()-eyeLocation.getY())) - 90;
-
-        pitch = (float) (pitch + Math.ceil( -pitch / 360 ) * 360);
-
-        this.rotateHead(player, pitch, yaw);
+        float yaw = (float) Math.toDegrees(Math.atan2(location.getZ() - eyeLocation.getZ(), location.getX() - eyeLocation.getX())) - 90;
+        yaw = (float) (yaw + Math.ceil(-yaw / 360) * 360);
+        float deltaXZ = (float) Math.sqrt(Math.pow(eyeLocation.getX() - location.getX(), 2) + Math.pow(eyeLocation.getZ() - location.getZ(), 2));
+        float pitch = (float) Math.toDegrees(Math.atan2(deltaXZ, location.getY() - eyeLocation.getY())) - 90;
+        pitch = (float) (pitch + Math.ceil(-pitch / 360) * 360);
+        this.rotateHead(receiver, pitch, yaw, true);
     }
 
-    public void rotateHead(Collection<Player> players, float pitch, float yaw) {
-        players.forEach(p->this.rotateHead(p, pitch, yaw));
+    public void rotateHead(Collection<? extends Player> receivers, float pitch, float yaw, boolean body) {
+        receivers.forEach(receiver -> this.rotateHead(receiver, pitch, yaw, body));
     }
 
-    public void rotateHead(Player player, float pitch, float yaw) {
+    public void rotateHead(Player receiver, float pitch, float yaw, boolean body) {
         this.location.setPitch(pitch);
         this.location.setYaw(yaw);
-        this.sendPacket(player, this.getEntityLookPacket());
-        this.sendPacket(player, this.getEntityHeadRotatePacket());
+        System.out.println(yaw);
+        if(body) this.sendPacket(receiver, this.getEntityLookPacket());
+        this.sendPacket(receiver, this.getEntityHeadRotatePacket());
     }
 
-    public void setTabListName(String name) {
-        this.displayName = name;
+    public void setEquipment(Collection<? extends Player> receivers, ItemSlot slot, org.bukkit.inventory.ItemStack itemStack) {
+        receivers.forEach(receiver -> this.setEquipment(receiver, slot, itemStack));
     }
 
-    public void setEquipment(Collection<Player> players, ItemSlot slot, org.bukkit.inventory.ItemStack itemStack) {
-        players.forEach(p->this.setEquipment(p, slot, itemStack));
+    public void setEquipment(Player receiver, ItemSlot slot, org.bukkit.inventory.ItemStack itemStack) {
+        this.sendPacket(receiver, this.getEntityEquipmentPacket(slot.getNMSItemSlot(), CraftItemStack.asNMSCopy(itemStack)));
     }
 
-    public void setEquipment(Player player, ItemSlot slot, org.bukkit.inventory.ItemStack itemStack) {
-        this.sendPacket(player, this.getEntityEquipmentPacket(slot.getSlot(), CraftItemStack.asNMSCopy(itemStack)));
+    public void setPassenger(Collection<? extends Player> receivers, int... entityIDs) {
+        receivers.forEach(receiver -> this.setPassenger(receiver, entityIDs));
     }
 
-    public void setPassenger(Collection<Player> players, int... entityIDs) {
-        players.forEach(p->this.setPassenger(p, entityIDs));
+    public void setPassenger(Player receiver, int... entityIDs) {
+        this.sendPacket(receiver, getEntityAttachPacket(entityIDs));
     }
 
-    public void setPassenger(Player player, int... entityIDs) {
-        this.sendPacket(player, getEntityAttachPacket(entityIDs));
+    public void setLeash(Player receiver, org.bukkit.entity.Entity entity) {
+        this.sendPacket(receiver, getAttachEntityPacket(entity));
     }
 
-    private void sendPacket(Player player, Packet<?> packet) {
-        ((CraftPlayer)(player)).getHandle().b.sendPacket(packet);
+    public void setLeash(Collection<? extends Player> receivers, org.bukkit.entity.Entity entity) {
+        receivers.forEach(p->this.setLeash(p, entity));
     }
 
-    public void setNameTagVisibility(Collection<Player> players, boolean show) {
-        players.forEach(p->this.setNameTagVisibility(p, show));
+    public void moveRelative(Player receiver, double relX, double relY, double relZ, boolean onGround) {
+        this.sendPacket(receiver, getEntityMovePacket(relX, relY, relZ, onGround));
     }
 
-    public void setNameTagVisibility(Player player, boolean show) {
-        ScoreboardTeam team = new ScoreboardTeam(new Scoreboard(), this.hideTeam);
-        if(show) {
-            PacketPlayOutScoreboardTeam leavePacket = PacketPlayOutScoreboardTeam.a(team, this.profile.getName(), PacketPlayOutScoreboardTeam.a.b);
-            this.sendPacket(player, leavePacket);
-        } else {
-            team.setNameTagVisibility(ScoreboardTeamBase.EnumNameTagVisibility.b);
-            PacketPlayOutScoreboardTeam createPacket = PacketPlayOutScoreboardTeam.a(team, true);
-            PacketPlayOutScoreboardTeam joinPacket = PacketPlayOutScoreboardTeam.a(team, this.profile.getName(), PacketPlayOutScoreboardTeam.a.a);
-            this.sendPacket(player, createPacket);
-            this.sendPacket(player, joinPacket);
-        }
+    public void moveRelative(Collection<? extends Player> receivers, double relX, double relY, double relZ, boolean onGround) {
+        receivers.forEach(p->this.moveRelative(p, relX, relY, relZ, onGround));
     }
 
-    private PacketPlayOutMount getEntityAttachPacket(int[] entityIDs) {
-        return this.createDataSerializer(data->{
-            data.d(this.entityID);
-            data.a(entityIDs);
-            return new PacketPlayOutMount(data);
+    public BukkitCompletable<NPC> setSkinByUsername(Plugin plugin, String username) {
+        return BukkitCompletable.supplyASync(plugin, ()->{
+            this.setSkin(NPC.SkinTextures.getByUsername(plugin, username).getSync());
+            return NPC.this;
         });
     }
 
-    private PacketPlayOutEntity.PacketPlayOutEntityLook getEntityLookPacket() {
-        return new PacketPlayOutEntity.PacketPlayOutEntityLook(this.entityID, (byte)((int)(this.location.getYaw() * 256.0F / 360.0F)), (byte)((int)(this.location.getPitch() * 256.0F / 360.0F)), true);
-    }
-
-    private PacketPlayOutEntityTeleport getEntityTeleportPacket(boolean onGround) {
-        return this.createDataSerializer(data->{
-            data.d(this.entityID);
-            data.writeDouble(this.location.getX());
-            data.writeDouble(this.location.getY());
-            data.writeDouble(this.location.getZ());
-            data.writeByte((byte)((int)(this.location.getYaw() * 256.0F / 360.0F)));
-            data.writeByte((byte)((int)(this.location.getPitch() * 256.0F / 360.0F)));
-            data.writeBoolean(onGround);
-            return new PacketPlayOutEntityTeleport(data);
+    public BukkitCompletable<NPC> setSkinByUUID(Plugin plugin, UUID uuid) {
+        return BukkitCompletable.supplyASync(plugin, ()->{
+            this.setSkin(NPC.SkinTextures.getByUUID(plugin, uuid).getSync());
+            return NPC.this;
         });
     }
 
-    private PacketPlayOutEntityHeadRotation getEntityHeadRotatePacket() {
-        return this.createDataSerializer(data->{
-            data.d(this.entityID);
-            data.writeByte((byte)((int)(this.location.getYaw() * 256.0F / 360.0F)));
-            return new PacketPlayOutEntityHeadRotation(data);
-        });
+    private void sendPacket(Player receiver, Packet<?> packet) {
+        ((CraftPlayer) (receiver)).getHandle().b.a(packet);
     }
 
-    private PacketPlayOutEntityEquipment getEntityEquipmentPacket(EnumItemSlot slot, ItemStack itemStack) {
-        return new PacketPlayOutEntityEquipment(this.entityID, Arrays.asList(new Pair<EnumItemSlot, ItemStack>(slot, itemStack)));
+    public void setTeamFeatures(Player receiver, TeamFeatures teamFeatures) {
+        ScoreboardTeam team = new ScoreboardTeam(new Scoreboard(), this.profile.getName());
+        team.a(teamFeatures.nameTagVisible() ? ScoreboardTeamBase.EnumNameTagVisibility.a : ScoreboardTeamBase.EnumNameTagVisibility.b);
+        team.a(teamFeatures.glowColor().getNMSColor());
+        team.a(teamFeatures.collision() ? ScoreboardTeamBase.EnumTeamPush.a : ScoreboardTeamBase.EnumTeamPush.b);
+        PacketPlayOutScoreboardTeam createPacket = PacketPlayOutScoreboardTeam.a(team, true);
+        PacketPlayOutScoreboardTeam joinPacket = PacketPlayOutScoreboardTeam.a(team, this.profile.getName(), PacketPlayOutScoreboardTeam.a.a);
+        this.sendPacket(receiver, createPacket);
+        this.sendPacket(receiver, joinPacket);
     }
 
-    private PacketPlayOutAnimation getEntityAnimationPacket(Animation animation) {
-        return this.createDataSerializer((data)->{
-            data.d(this.entityID);
-            data.writeByte((byte)animation.getType());
-            return new PacketPlayOutAnimation(data);
-        });
+    public NBTTagCompound createParrot(Consumer<Parrot> callback, World world) {
+        EntityParrot entityParrot = new EntityParrot(EntityTypes.ao, ((CraftWorld) world).getHandle());
+        CraftParrot parrot = new CraftParrot((CraftServer) Bukkit.getServer(), entityParrot);
+        callback.accept(parrot);
+        NBTTagCompound nbtTagCompound = new NBTTagCompound();
+        entityParrot.d(nbtTagCompound);
+        return nbtTagCompound;
     }
 
-    private PacketPlayOutEntityDestroy getEntityDestroyPacket(){
-        return new PacketPlayOutEntityDestroy(this.entityID);
+    public void setParrotLeftShoulder(Consumer<Parrot> callback, World world) {
+        this.metadata.setLeftShoulder(this.createParrot(callback, world));
     }
 
-    private PacketPlayOutEntityMetadata getEntityMetadataPacket() {
-        return this.createDataSerializer((data)->{
-            data.d(this.entityID);
-            DataWatcher.a(this.metadata.getList(), data);
-            return new PacketPlayOutEntityMetadata(data);
-        });
-    }
-
-    private PacketPlayOutNamedEntitySpawn getEntitySpawnPacket() {
-        return this.createDataSerializer((data)->{
-            data.d(this.entityID);
-            data.a(this.profile.getId());
-            data.writeDouble(this.location.getX());
-            data.writeDouble(this.location.getY());
-            data.writeDouble(this.location.getZ());
-            data.writeByte((byte)((int)(this.location.getYaw() * 256.0F / 360.0F)));
-            data.writeByte((byte)((int)(this.location.getPitch() * 256.0F / 360.0F)));
-            return new PacketPlayOutNamedEntitySpawn(data);
-        });
-    }
-
-    public PacketPlayOutPlayerInfo getPlayerInfoPacket(PlayerInfo playerInfo) {
-        return this.createDataSerializer((data)->{
-            PacketPlayOutPlayerInfo.EnumPlayerInfoAction action = playerInfo.getPlayerInfo();
-            PacketPlayOutPlayerInfo.PlayerInfoData playerInfoData = new PacketPlayOutPlayerInfo.PlayerInfoData(this.profile, this.ping.getMilliseconds(), this.gamemode.getGamemode(), CraftChatMessage.fromString(this.displayName)[0]);
-            List<PacketPlayOutPlayerInfo.PlayerInfoData> list = Arrays.asList(playerInfoData);
-            data.a(playerInfo.getPlayerInfo());
-            Method method = playerInfo.getPlayerInfo().getDeclaringClass().getDeclaredMethod("a", PacketDataSerializer.class, PacketPlayOutPlayerInfo.PlayerInfoData.class);
-            method.setAccessible(true);
-            data.a(list, (a,b)->this.unsafe(()->method.invoke(action, a, b)));
-            return new PacketPlayOutPlayerInfo(data);
-        });
+    public void setParrotRightShoulder(Consumer<Parrot> callback, World world) {
+        this.metadata.setRightShoulder(this.createParrot(callback, world));
     }
 
     public int getEntityID() {
@@ -361,7 +316,7 @@ public class NPC {
         return profile;
     }
 
-    public NPCMetaData getMetadata() {
+    public MetaData getMetadata() {
         return metadata;
     }
 
@@ -370,362 +325,334 @@ public class NPC {
     }
 
     public Location getEyeLocation() {
-        return this.location.clone().add(0, EntityTypes.bi.m().b * 0.85F, 0);
+        return this.location.clone().add(0, EntityTypes.bn.m().b * 0.85F, 0);
     }
 
-    public Ping getPing() {
-        return ping;
+    public MetaData getMetaData() {
+        return this.metadata;
     }
 
-    public Gamemode getGameMode() {
-        return gamemode;
-    }
-
-    public String getDisplayName() {
-        return displayName;
+    public void setMetaData(MetaData metaData) {
+        this.metadata = metaData;
     }
 
     public void setSkin(SkinTextures skinTextures) {
         this.profile.getProperties().put("textures", new Property("textures", skinTextures.getTexture(), skinTextures.getSignature()));
     }
 
-    public void setASyncSkinByUsername(Plugin plugin, Collection<Player> players, String username) {
-        this.setASyncSkinByUsername(plugin, players, username, null);
-    }
-
-    public void setASyncSkinByUsername(Plugin plugin, Player player, String username) {
-        this.setASyncSkinByUsername(plugin, player, username, null);
-    }
-
-    public void setASyncSkinByUUID(Plugin plugin, Collection<Player> players, UUID uuid) {
-        this.setASyncSkinByUUID(plugin, players, uuid, null);
-    }
-
-    public void setASyncSkinByUUID(Plugin plugin, Player player, UUID uuid) {
-        this.setASyncSkinByUUID(plugin, player, uuid, null);
-    }
-
-    public void setASyncSkinByUsername(Plugin plugin, Player player, String username, BiConsumer<Boolean, NPC> callback) {
-        SkinTextures.getByUsername(plugin, username, (success, skin)->setASyncSkin(success, skin, player, callback));
-    }
-
-    public void setASyncSkinByUsername(Plugin plugin, Collection<Player> players, String username, BiConsumer<Boolean, NPC> callback) {
-        SkinTextures.getByUsername(plugin, username, (success, skin)->setASyncSkin(success, skin, players, callback));
-    }
-
-    public void setASyncSkinByUUID(Plugin plugin, Player player, UUID uuid, BiConsumer<Boolean, NPC> callback) {
-        SkinTextures.getByUUID(plugin, uuid, (success, skin)->setASyncSkin(success, skin, player, callback));
-    }
-
-    public void setASyncSkinByUUID(Plugin plugin, Collection<Player> players, UUID uuid, BiConsumer<Boolean, NPC> callback) {
-        SkinTextures.getByUUID(plugin, uuid, (success, skin)->setASyncSkin(success, skin, players, callback));
-    }
-
-    private void setASyncSkin(boolean success, SkinTextures skin, Collection<Player> players, BiConsumer<Boolean, NPC> callback) {
-        if(success) {
-            this.setSkin(skin);
-            this.reloadNPC(players);
-        }
-        callback.accept(success, this);
-    }
-
-    private void setASyncSkin(boolean success, SkinTextures skin, Player player, BiConsumer<Boolean, NPC> callback) {
-        this.setASyncSkin(success, skin, Arrays.asList(player), callback);
-    }
-
-    public void setPing(Ping ping) {
-        this.ping = ping;
-    }
-
-    public void setGameMode(Gamemode gamemode) {
-        this.gamemode = gamemode;
-    }
-
     public void setDisplayName(String displayName) {
-        this.displayName = displayName;
         GameProfile swapProfile = new GameProfile(this.profile.getId(), displayName);
         swapProfile.getProperties().putAll(this.profile.getProperties());
         this.profile = swapProfile;
     }
 
-    public class NPCMetaData {
-
-        //Entity metadata
-        private final DataWatcher.Item<Byte> entityState = a(0, (byte)EntityState.createMask(EntityState.DEFAULT));
-        private final DataWatcher.Item<Integer> airTicks = a(1, 300);
-        private final DataWatcher.Item<Optional<IChatBaseComponent>> customName = a(2, Optional.empty(), DataWatcherRegistry.f);
-        private final DataWatcher.Item<Boolean> customNameVisible = a(3, false);
-        private final DataWatcher.Item<Boolean> silent = a(4, false);
-        private final DataWatcher.Item<Boolean> gravity = a(5, false);
-        private final DataWatcher.Item<EntityPose> pose = a(6, Pose.STANDING.getPose());
-        private final DataWatcher.Item<Integer> frozenTicks = a(7, 0); //shaking at tick 140
-
-        //LivingEntity metadata
-        private final DataWatcher.Item<Byte> handStatus = a(8, (byte)HandStatus.createMask(HandStatus.MAIN_HAND));
-        private final DataWatcher.Item<Float> health = a(9, 1.0F);
-        private final DataWatcher.Item<Integer> potionEffectColor = a(10, 0);
-        private final DataWatcher.Item<Boolean> isPotionEffectAmbient = a(11, false);
-        private final DataWatcher.Item<Integer> arrowsInEntity = a(12, 0);
-        private final DataWatcher.Item<Integer> absorptionHealth = a(13, 0);
-        private final DataWatcher.Item<Optional<BlockPosition>> sleepingBedLocation = a(14, Optional.empty(), DataWatcherRegistry.m);
-
-        //Player metadata
-        private final DataWatcher.Item<Float> additionalHearts = a(15, 0.0F);
-        private final DataWatcher.Item<Integer> score = a(16, 0);
-        private final DataWatcher.Item<Byte> skinStatus = a(17, (byte)SkinStatus.createMask(SkinStatus.ALL_ENABLED));
-        private final DataWatcher.Item<Byte> hand = a(18, (byte)Hand.RIGHT.getType());
-        private final DataWatcher.Item<NBTTagCompound> leftShoulder = a(19, new NBTTagCompound());
-        private final DataWatcher.Item<NBTTagCompound> rightShoulder = a(20, new NBTTagCompound());
-
-        private final List<DataWatcher.Item<?>> list;
-
-        public NPCMetaData() {
-            this.list = new ArrayList<>(Arrays.asList(
-                    this.entityState,
-                    this.airTicks,
-                    this.customName,
-                    this.customNameVisible,
-                    this.silent,
-                    this.gravity,
-                    this.pose,
-                    this.frozenTicks,
-                    this.handStatus,
-                    this.health,
-                    this.potionEffectColor,
-                    this.isPotionEffectAmbient,
-                    this.arrowsInEntity,
-                    this.absorptionHealth,
-                    this.sleepingBedLocation,
-                    this.additionalHearts,
-                    this.score,
-                    this.skinStatus,
-                    this.hand,
-                    this.leftShoulder,
-                    this.rightShoulder));
+    public void registerListener(NPCListener listener) {
+        if (EventManager.isInitialized()) {
+            EventManager.INSTANCE.listenNPC(this, listener);
         }
+    }
 
-        public EntityState[] getEntityState() {
-            return EntityState.fromMask(entityState.b());
+    public void unregisterListener() {
+        if (EventManager.isInitialized()) {
+            EventManager.INSTANCE.unlistenNPC(this);
         }
+    }
 
-        public Integer getAirTicks() {
-            return airTicks.b();
-        }
+    private PacketPlayOutMount getEntityAttachPacket(int[] entityIDs) {
+        return this.createDataSerializer(data -> {
+            data.d(this.entityID);
+            data.a(entityIDs);
+            return new PacketPlayOutMount(data);
+        });
+    }
 
-        public Optional<IChatBaseComponent> getCustomName() {
-            return customName.b();
-        }
+    private PacketPlayOutEntity.PacketPlayOutEntityLook getEntityLookPacket() {
+        return new PacketPlayOutEntity.PacketPlayOutEntityLook(this.entityID, (byte) ((int) (this.location.getYaw() * 256.0F / 360.0F)), (byte) ((int) (this.location.getPitch() * 256.0F / 360.0F)), true);
+    }
 
-        public Boolean isCustomNameVisible() {
-            return customNameVisible.b();
-        }
+    private PacketPlayOutEntityHeadRotation getEntityHeadRotatePacket() {
+        return this.createDataSerializer(data -> {
+            data.d(this.entityID);
+            data.writeByte((byte) ((int) (this.location.getYaw() * 256.0F / 360.0F)));
+            return new PacketPlayOutEntityHeadRotation(data);
+        });
+    }
 
-        public Boolean isSilent() {
-            return silent.b();
-        }
+    private PacketPlayOutEntityTeleport getEntityTeleportPacket(boolean onGround) {
+        return this.createDataSerializer(data -> {
+            data.d(this.entityID);
+            data.writeDouble(this.location.getX());
+            data.writeDouble(this.location.getY());
+            data.writeDouble(this.location.getZ());
+            data.writeByte((byte) ((int) (this.location.getYaw() * 256.0F / 360.0F)));
+            data.writeByte((byte) ((int) (this.location.getPitch() * 256.0F / 360.0F)));
+            data.writeBoolean(onGround);
+            return new PacketPlayOutEntityTeleport(data);
+        });
+    }
 
-        public Boolean hasGravity() {
-            return gravity.b();
-        }
+    private PacketPlayOutEntity.PacketPlayOutRelEntityMove getEntityMovePacket(double x, double y, double z, boolean onGround) {
+        return new PacketPlayOutEntity.PacketPlayOutRelEntityMove(this.entityID, (short)(x * 4096), (short)(y * 4096), (short)(z * 4096), onGround);
+    }
 
-        public Pose getPose() {
-            return Pose.fromPose(pose.b());
-        }
+    private PacketPlayOutAttachEntity getAttachEntityPacket(org.bukkit.entity.Entity entity) {
+        return createDataSerializer(data -> {
+            data.writeInt(entity.getEntityId());
+            data.writeInt(this.entityID);
+            return new PacketPlayOutAttachEntity(data);
+        });
+    }
 
-        public Integer getFrozenTicks() {
-            return frozenTicks.b();
-        }
+    private PacketPlayOutEntityEquipment getEntityEquipmentPacket(EnumItemSlot slot, ItemStack itemStack) {
+        return new PacketPlayOutEntityEquipment(this.entityID, Arrays.asList(new Pair<>(slot, itemStack)));
+    }
 
-        public HandStatus[] getHandStatus() {
-            return HandStatus.fromMask(handStatus.b());
-        }
+    private PacketPlayOutAnimation getEntityAnimationPacket(Animation animation) {
+        return this.createDataSerializer((data) -> {
+            data.d(this.entityID);
+            data.writeByte((byte) animation.getType());
+            return new PacketPlayOutAnimation(data);
+        });
+    }
 
-        public Float getHealth() {
-            return health.b();
-        }
+    private PacketPlayOutEntityDestroy getEntityDestroyPacket() {
+        return new PacketPlayOutEntityDestroy(this.entityID);
+    }
 
-        public Integer getPotionEffectColor() {
-            return potionEffectColor.b();
-        }
+    private PacketPlayOutEntityMetadata getEntityMetadataPacket() {
+        return this.createDataSerializer((data) -> {
+            data.d(this.entityID);
+            DataWatcher.a(this.metadata.getList(), data);
+            return new PacketPlayOutEntityMetadata(data);
+        });
+    }
 
-        public Boolean isPotionEffectAmbient() {
-            return isPotionEffectAmbient.b();
-        }
+    private PacketPlayOutNamedEntitySpawn getEntitySpawnPacket() {
+        return this.createDataSerializer((data) -> {
+            data.d(this.entityID);
+            data.a(this.profile.getId());
+            data.writeDouble(this.location.getX());
+            data.writeDouble(this.location.getY());
+            data.writeDouble(this.location.getZ());
+            data.writeByte((byte) ((int) (this.location.getYaw() * 256.0F / 360.0F)));
+            data.writeByte((byte) ((int) (this.location.getPitch() * 256.0F / 360.0F)));
+            return new PacketPlayOutNamedEntitySpawn(data);
+        });
+    }
 
-        public Integer getArrowsInEntity() {
-            return arrowsInEntity.b();
-        }
+    private PacketPlayOutPlayerInfo getUpdatePlayerInfoPacket(PlayerInfo playerInfo, Object obj) {
+        return this.createDataSerializer((data) -> {
+            PacketPlayOutPlayerInfo.EnumPlayerInfoAction action = playerInfo.getNMSAction();
+            PacketPlayOutPlayerInfo.PlayerInfoData playerInfoData;
 
-        public Integer getAbsorptionHealth() {
-            return absorptionHealth.b();
-        }
+            net.minecraft.world.entity.player.ProfilePublicKey.a playerPublicKey = null;
 
-        public Optional<BlockPosition> getSleepingBedLocation() {
-            return sleepingBedLocation.b();
-        }
-
-        public Float getAdditionalHearts() {
-            return additionalHearts.b();
-        }
-
-        public Integer getScore() {
-            return score.b();
-        }
-
-        public SkinStatus[] getSkinStatus() {
-            return SkinStatus.fromMask(skinStatus.b());
-        }
-
-        public Hand getHand() {
-            return Hand.fromByte(hand.b());
-        }
-
-        public NBTTagCompound getLeftShoulder() {
-            return leftShoulder.b();
-        }
-
-        public NBTTagCompound getRightShoulder() {
-            return rightShoulder.b();
-        }
-
-        public List<DataWatcher.Item<?>> getList() {
-            return list;
-        }
-
-        public void setEntityState(EntityState... entityState) {
-            this.entityState.a((byte) EntityState.createMask(entityState));
-        }
-
-        public void setAirTicks(Integer airTicks) {
-            this.airTicks.a(airTicks);
-        }
-
-        public void setCustomName(String customName) {
-            this.customName.a(Optional.ofNullable(IChatBaseComponent.a(customName)));
-        }
-
-        public void setCustomNameVisible(Boolean customNameVisible) {
-            this.customNameVisible.a(customNameVisible);
-        }
-
-        public void setSilent(Boolean silent) {
-            this.silent.a(silent);
-        }
-
-        public void setGravity(Boolean gravity) {
-            this.gravity.a(gravity);
-        }
-
-        public void setPose(Pose pose) {
-            this.pose.a(pose.getPose());
-        }
-
-        public void setFrozenTicks(Integer frozenTicks) {
-            this.frozenTicks.a(frozenTicks);
-        }
-
-        public void setShaking() {
-            this.setFrozenTicks(140);
-        }
-
-        public void setHandStatus(HandStatus handStatus) {
-            this.handStatus.a((byte) HandStatus.createMask(handStatus));
-        }
-
-        public void setHealth(Float health) {
-            this.health.a(health);
-        }
-
-        public void setPotionEffectColor(Integer potionEffectColor) {
-            this.potionEffectColor.a(potionEffectColor);
-        }
-
-        public void setIsPotionEffectAmbient(Boolean isPotionEffectAmbient) {
-            this.isPotionEffectAmbient.a(isPotionEffectAmbient);
-        }
-
-        public void setArrowsInEntity(Integer arrowsInEntity) {
-            this.arrowsInEntity.a(arrowsInEntity);
-        }
-
-        public void setAbsorptionHealth(Integer absorptionHealth) {
-            this.absorptionHealth.a(absorptionHealth);
-        }
-
-        public void setSleepingBedLocation(BlockPosition sleepingBedLocation) {
-            this.sleepingBedLocation.a(Optional.ofNullable(sleepingBedLocation));
-        }
-
-        public void setAdditionalHearts(Float additionalHearts) {
-            this.additionalHearts.a(additionalHearts);
-        }
-
-        public void setScore(Integer score) {
-            this.score.a(score);
-        }
-
-        public void setSkinStatus(SkinStatus... skinStatus) {
-            this.skinStatus.a((byte) SkinStatus.createMask(skinStatus));
-        }
-
-        public void setHand(Hand hand) {
-            this.hand.a((byte) hand.getType());
-        }
-
-        public NBTTagCompound createParrot(Consumer<Parrot> callback, World world) {
-            EntityParrot entityParrot = new EntityParrot(EntityTypes.al, ((CraftWorld)world).getHandle());
-            CraftParrot parrot = new CraftParrot((CraftServer) Bukkit.getServer(), entityParrot);
-            callback.accept(parrot);
-            NBTTagCompound nbtTagCompound = new NBTTagCompound();
-            entityParrot.d(nbtTagCompound);
-            return nbtTagCompound;
-        }
-
-        public void setParrotLeftShoulder(Consumer<Parrot> callback, World world) {
-            this.setLeftShoulder(this.createParrot(callback, world));
-        }
-
-        public void setParrotRightShoulder(Consumer<Parrot> callback, World world) {
-            this.setRightShoulder(this.createParrot(callback, world));
-        }
-
-        public void setLeftShoulder(NBTTagCompound leftShoulder) {
-            this.leftShoulder.a(leftShoulder);
-        }
-
-        public void setRightShoulder(NBTTagCompound rightShoulder) {
-            this.rightShoulder.a(rightShoulder);
-        }
-
-        private <T> DataWatcher.Item<T> a(int index, T value) {
-            DataWatcherSerializer<?> serializer = null;
-
-            if(value instanceof Byte) {
-                serializer = DataWatcherRegistry.a;
-            } else if(value instanceof Float) {
-                serializer = DataWatcherRegistry.c;
-            } else if(value instanceof Integer) {
-                serializer = DataWatcherRegistry.b;
-            } else if(value instanceof String) {
-                serializer = DataWatcherRegistry.d;
-            } else if(value instanceof Boolean) {
-                serializer = DataWatcherRegistry.i;
-            } else if(value instanceof NBTTagCompound) {
-                serializer = DataWatcherRegistry.p;
-            } else if(value instanceof BlockPosition) {
-                serializer = DataWatcherRegistry.m;
-            } else if(value instanceof IChatBaseComponent) {
-                serializer = DataWatcherRegistry.e;
-            } else if(value instanceof EntityPose) {
-                serializer = DataWatcherRegistry.s;
+            if (playerInfo == PlayerInfo.UPDATE_LATENCY) {
+                playerInfoData = new PacketPlayOutPlayerInfo.PlayerInfoData(this.profile, ((Ping) obj).getMilliseconds(), null, null, playerPublicKey);
+            } else if (playerInfo == PlayerInfo.UPDATE_GAME_MODE) {
+                playerInfoData = new PacketPlayOutPlayerInfo.PlayerInfoData(this.profile, 0, ((GameMode) obj).getNMSGameMode(), null, playerPublicKey);
+            } else if (playerInfo == PlayerInfo.UPDATE_DISPLAY_NAME) {
+                playerInfoData = new PacketPlayOutPlayerInfo.PlayerInfoData(this.profile, 0, null, CraftChatMessage.fromString(((String) obj))[0], playerPublicKey);
+            } else {
+                throw new NullPointerException();
             }
-            return a(index, value, (DataWatcherSerializer<T>)serializer);
+
+            List<PacketPlayOutPlayerInfo.PlayerInfoData> list = Arrays.asList(playerInfoData);
+            Method method = playerInfo.getNMSAction().getDeclaringClass().getDeclaredMethod("a", PacketDataSerializer.class, PacketPlayOutPlayerInfo.PlayerInfoData.class);
+            method.setAccessible(true);
+            data.a(playerInfo.getNMSAction());
+            data.a(list, (PacketDataSerializer.b<PacketPlayOutPlayerInfo.PlayerInfoData>) (a, b) -> this.unsafe(() -> method.invoke(action, a, b)));
+            return new PacketPlayOutPlayerInfo(data);
+        });
+    }
+
+    private PacketPlayOutPlayerInfo getPlayerInfoPacket(PlayerInfo playerInfo) {
+        return this.createDataSerializer((data) -> {
+            PacketPlayOutPlayerInfo.EnumPlayerInfoAction action = playerInfo.getNMSAction();
+            net.minecraft.world.entity.player.ProfilePublicKey.a playerPublicKey = null;
+            PacketPlayOutPlayerInfo.PlayerInfoData playerInfoData = new PacketPlayOutPlayerInfo.PlayerInfoData(this.profile, Ping.FIVE_BARS.getMilliseconds(), GameMode.CREATIVE.getNMSGameMode(), CraftChatMessage.fromString(this.getProfile().getName())[0], playerPublicKey);
+            List<PacketPlayOutPlayerInfo.PlayerInfoData> list = Arrays.asList(playerInfoData);
+            data.a(playerInfo.getNMSAction());
+            Method method = playerInfo.getNMSAction().getDeclaringClass().getDeclaredMethod("a", PacketDataSerializer.class, PacketPlayOutPlayerInfo.PlayerInfoData.class);
+            method.setAccessible(true);
+            data.a(list, (PacketDataSerializer.b<PacketPlayOutPlayerInfo.PlayerInfoData>) (a, b) -> this.unsafe(() -> method.invoke(action, a, b)));
+            return new PacketPlayOutPlayerInfo(data);
+        });
+    }
+
+    public static void initEventHandler(Plugin plugin) {
+        EventManager.init(plugin);
+    }
+
+    public enum EntityState implements EnumUtil.Maskable<EntityState> {
+
+        DEFAULT(0x00),
+        ON_FIRE(0x01),
+        @Deprecated CROUCHING(0x02),
+        @Deprecated UNUSED(0x04),
+        SPRINTING(0x08),
+        SWIMMING(0x10),
+        INVISIBLE(0x20),
+        GLOWING(0x40),
+        FLYING(0x80);
+
+        private final int mask;
+
+        EntityState(int mask) {
+            this.mask = mask;
         }
 
-        private <T> DataWatcher.Item<T> a(int index, T value, DataWatcherSerializer<T> serializer) {
-            return new DataWatcher.Item<T>(new DataWatcherObject<T>(index, serializer), value);
+        public int getMask() {
+            return mask;
+        }
+    }
+
+    public enum SkinStatus implements EnumUtil.Maskable<SkinStatus> {
+
+        CAPE_ENABLED(0x01),
+        JACKET_ENABLED(0x02),
+        LEFT_SLEEVE_ENABLED(0x04),
+        RIGHT_SLEEVE_ENABLED(0x08),
+        LEFT_PANTS_LEG_ENABLED(0x10),
+        RIGHT_PANTS_LEG_ENABLED(0x20),
+        HAT_ENABLED(0x40),
+        @Deprecated UNUSED(0x80);
+
+        private static final SkinStatus[] ALL = {CAPE_ENABLED, JACKET_ENABLED, LEFT_SLEEVE_ENABLED, RIGHT_SLEEVE_ENABLED, LEFT_PANTS_LEG_ENABLED, RIGHT_PANTS_LEG_ENABLED, HAT_ENABLED};
+        private final int mask;
+
+        SkinStatus(int mask) {
+            this.mask = mask;
         }
 
+        public int getMask() {
+            return mask;
+        }
+    }
+
+    public enum Pose implements EnumUtil.Identifiable<EntityPose> {
+
+        STANDING(EntityPose.a),
+        FALL_FLYING(EntityPose.b),
+        SLEEPING(EntityPose.c),
+        SWIMMING(EntityPose.d),
+        SPIN_ATTACK(EntityPose.e),
+        CROUCHING(EntityPose.f),
+        LONG_JUMPING(EntityPose.g),
+        DYING(EntityPose.h),
+        CROAKING(EntityPose.i),
+        ROARING(EntityPose.j),
+        SNIFFING(EntityPose.k),
+        EMERGING(EntityPose.l),
+        DIGGING(EntityPose.m);
+
+        private final EntityPose nmsPose;
+
+        Pose(EntityPose nmsPose) {
+            this.nmsPose = nmsPose;
+        }
+
+        public EntityPose getID() {
+            return nmsPose;
+        }
+
+    }
+
+    public enum HandStatus implements EnumUtil.Maskable<HandStatus> {
+
+        MAIN_HAND(0x00),
+        HAND_ACTIVE(0x01),
+        OFF_HAND(0x02),
+        RIPTIDE_SPIN_ATTACK(0x04);
+
+        private final int mask;
+
+        HandStatus(int mask) {
+            this.mask = mask;
+        }
+
+        public int getMask() {
+            return mask;
+        }
+    }
+
+    public enum Hand implements EnumUtil.BiIdentifiable<EnumHand, Integer> {
+
+        OFF_HAND(EnumHand.b, 1),
+        MAIN_HAND(EnumHand.a, 0);
+
+        private final EnumHand id;
+        private final int type;
+
+        Hand(EnumHand id, int type) {
+            this.id = id;
+            this.type = type;
+        }
+
+        public Integer getSecondID() {
+            return type;
+        }
+
+        public EnumHand getID() {
+            return id;
+        }
+
+    }
+
+    public enum InteractType implements EnumUtil.Identifiable<String> {
+
+        RIGHT_CLICK("INTERACT"),
+        LEFT_CLICK("ATTACK"),
+        RIGHT_CLICK_AT("INTERACT_AT");
+
+        private final String id;
+
+        InteractType(String id) {
+            this.id = id;
+        }
+
+        public String getID() {
+            return id;
+        }
+    }
+
+    public enum PlayerInfo {
+
+        ADD_PLAYER(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.a),
+        UPDATE_GAME_MODE(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.b),
+        UPDATE_LATENCY(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.c),
+        UPDATE_DISPLAY_NAME(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.d),
+        REMOVE_PLAYER(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.e);
+
+        private final PacketPlayOutPlayerInfo.EnumPlayerInfoAction nmsAction;
+
+        PlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction nmsAction) {
+            this.nmsAction = nmsAction;
+        }
+
+        public PacketPlayOutPlayerInfo.EnumPlayerInfoAction getNMSAction() {
+            return nmsAction;
+        }
+    }
+
+    public enum Ping {
+
+        NO_CONNECTION(-1),
+        ONE_BAR(1000),
+        TWO_BARS(999),
+        THREE_BARS(599),
+        FOUR_BARS(299),
+        FIVE_BARS(149);
+
+        private final int milliseconds;
+
+        Ping(int milliseconds) {
+            this.milliseconds = milliseconds;
+        }
+
+        public int getMilliseconds() {
+            return milliseconds;
+        }
     }
 
     public enum ItemSlot {
@@ -737,148 +664,63 @@ public class NPC {
         CHESTPLATE(EnumItemSlot.e),
         HELMET(EnumItemSlot.f);
 
-        private final EnumItemSlot slot;
+        private final EnumItemSlot nmsItemSlot;
 
-        ItemSlot(EnumItemSlot slot) {
-            this.slot = slot;
+        ItemSlot(EnumItemSlot nmsItemSlot) {
+            this.nmsItemSlot = nmsItemSlot;
         }
 
-        public EnumItemSlot getSlot() {
-            return slot;
-        }
-    }
-
-    public enum Hand {
-
-        LEFT(0),
-        RIGHT(1);
-
-        private final int type;
-
-        Hand(int type) {
-            this.type = type;
-        }
-
-        public int getType() {
-            return type;
-        }
-
-        public static Hand fromByte(byte type) {
-            for(Hand hand : values()) {
-                if(type == hand.type) {
-                    return hand;
-                }
-            }
-            return null;
+        public EnumItemSlot getNMSItemSlot() {
+            return nmsItemSlot;
         }
     }
 
-    public enum Pose {
+    public enum GlowColor {
 
-        STANDING(EntityPose.a),
-        FALL_FLYING(EntityPose.b),
-        SLEEPING(EntityPose.c),
-        SWIMMING(EntityPose.d),
-        SPIN_ATTACK(EntityPose.e),
-        CROUCHING(EntityPose.f),
-        LONG_JUMPING(EntityPose.g),
-        DYING(EntityPose.h);
+        BLACK(EnumChatFormat.a),
+        DARK_BLUE(EnumChatFormat.b),
+        DARK_GREEN(EnumChatFormat.c),
+        DARK_AQUA(EnumChatFormat.d),
+        DARK_RED(EnumChatFormat.e),
+        DARK_PURPLE(EnumChatFormat.f),
+        GOLD(EnumChatFormat.g),
+        GRAY(EnumChatFormat.h),
+        DARK_GRAY(EnumChatFormat.i),
+        BLUE(EnumChatFormat.j),
+        GREEN(EnumChatFormat.k),
+        AQUA(EnumChatFormat.l),
+        RED(EnumChatFormat.m),
+        LIGHT_PURPLE(EnumChatFormat.n),
+        YELLOW(EnumChatFormat.o),
+        WHITE(EnumChatFormat.p),
+        NONE(EnumChatFormat.v);
 
-        private final EntityPose pose;
+        private final EnumChatFormat nmsColor;
 
-        Pose(EntityPose pose) {
-            this.pose = pose;
+        GlowColor(EnumChatFormat nmsColor) {
+            this.nmsColor = nmsColor;
         }
 
-        public EntityPose getPose() {
-            return pose;
-        }
-
-        public static Pose fromPose(EntityPose entityPose) {
-            for(Pose pose : values()) {
-                if(entityPose == pose.pose) {
-                    return pose;
-                }
-            }
-            return null;
-        }
-    }
-
-    public enum SkinStatus {
-
-        CAPE_ENABLED(0x01),
-        JACKET_ENABLED(0x02),
-        LEFT_SLEEVE_ENABLED(0x04),
-        RIGHT_SLEEVE_ENABLED(0x08),
-        LEFT_PANTS_LEG_ENABLED(0x10),
-        RIGHT_PANTS_LEG_ENABLED(0x20),
-        HAT_ENABLED(0x40),
-        @Deprecated UNUSED(0x80),
-        ALL_ENABLED(0xFF);
-
-        private final int mask;
-
-        SkinStatus(int mask) {
-            this.mask = mask;
-        }
-
-        public int getMask() {
-            return mask;
-        }
-
-        public static int createMask(SkinStatus... skinStatuses) {
-            int mask = 0;
-            for(SkinStatus handStatus : skinStatuses) {
-                mask |= handStatus.mask;
-            }
-            return mask;
-        }
-
-        public static SkinStatus[] fromMask(int mask) {
-            List<SkinStatus> list = new ArrayList<>();
-            for(SkinStatus skinStatus : values()) {
-                if((skinStatus.mask & mask) == skinStatus.mask) {
-                    list.add(skinStatus);
-                }
-            }
-            return list.toArray(new SkinStatus[list.size()]);
+        public EnumChatFormat getNMSColor() {
+            return nmsColor;
         }
     }
 
-    public enum HandStatus {
+    public enum GameMode {
 
-        MAIN_HAND(0x00),
-        HAND_ACTIVE(0x01),
-        OFF_HAND(0x02),
-        RIPTIDE_SPIN_ATTACK(0x04),
-        ALL(0x07);
+        SURVIVAL(EnumGamemode.a),
+        CREATIVE(EnumGamemode.b),
+        ADVENTURE(EnumGamemode.c),
+        SPECTATOR(EnumGamemode.d);
 
-        private final int mask;
+        private final EnumGamemode nmsGameMode;
 
-        HandStatus(int mask) {
-            this.mask = mask;
+        GameMode(EnumGamemode nmsGameMode) {
+            this.nmsGameMode = nmsGameMode;
         }
 
-        public int getMask() {
-            return mask;
-        }
-
-        public static int createMask(HandStatus... handStatuses) {
-            int mask = 0;
-            for(HandStatus handStatus : handStatuses) {
-                mask |= handStatus.mask;
-            }
-            return mask;
-        }
-
-        public static HandStatus[] fromMask(int mask) {
-            List<HandStatus> list = new ArrayList<>();
-            for(HandStatus handStatus : values()) {
-                if((handStatus.mask & mask) == handStatus.mask) {
-                    list.add(handStatus);
-                }
-            }
-            return list.toArray(new HandStatus[list.size()]);
+        public EnumGamemode getNMSGameMode() {
+            return nmsGameMode;
         }
     }
 
@@ -903,102 +745,321 @@ public class NPC {
 
     }
 
-    public enum EntityState {
+    public class MetaData {
 
-        DEFAULT(0x00),
-        ON_FIRE(0x01),
-        @Deprecated CROUCHING(0x02),
-        @Deprecated UNUSED(0x04),
-        SPRINTING(0x08),
-        SWIMMING(0x10),
-        INVISIBLE(0x20),
-        GLOWING(0x40),
-        FLYING(0x80),
-        ALL(0xFF);
+        //Entity metadata
+        private final DataWatcher.Item<Byte> entityState = a(0, (byte) EnumUtil.createMask(EntityState.DEFAULT));
+        private final DataWatcher.Item<Integer> airTicks = a(1, 300);
+        private final DataWatcher.Item<Optional<IChatBaseComponent>> customName = a(2, Optional.empty(), DataWatcherRegistry.f);
+        private final DataWatcher.Item<Boolean> customNameVisible = a(3, false);
+        private final DataWatcher.Item<Boolean> silent = a(4, false);
+        private final DataWatcher.Item<Boolean> noGravity = a(5, false);
+        private final DataWatcher.Item<EntityPose> pose = a(6, Pose.STANDING.getID());
+        private final DataWatcher.Item<Integer> frozenTicks = a(7, 0); //shaking at tick 140
 
-        private final int mask;
+        //LivingEntity metadata
+        private final DataWatcher.Item<Byte> handStatus = a(8, (byte) EnumUtil.createMask(HandStatus.MAIN_HAND));
+        private final DataWatcher.Item<Float> health = a(9, 1.0F);
+        private final DataWatcher.Item<Integer> potionEffectColor = a(10, 0);
+        private final DataWatcher.Item<Boolean> isPotionEffectAmbient = a(11, false);
+        private final DataWatcher.Item<Integer> arrowsInEntity = a(12, 0);
+        private final DataWatcher.Item<Integer> beeStingers = a(13, 0);
+        private final DataWatcher.Item<Optional<BlockPosition>> sleepingBedLocation = a(14, Optional.empty(), DataWatcherRegistry.m);
 
-        EntityState(int mask) {
-            this.mask = mask;
+        //Player metadata
+        private final DataWatcher.Item<Float> additionalHearts = a(15, 0.0F);
+        private final DataWatcher.Item<Integer> score = a(16, 0);
+        private final DataWatcher.Item<Byte> skinStatus = a(17, (byte) EnumUtil.createMask(SkinStatus.ALL));
+        private final DataWatcher.Item<Byte> hand = a(18, (byte) ((int) Hand.MAIN_HAND.getSecondID()));
+        private final DataWatcher.Item<NBTTagCompound> leftShoulder = a(19, new NBTTagCompound());
+        private final DataWatcher.Item<NBTTagCompound> rightShoulder = a(20, new NBTTagCompound());
+
+        private final List<DataWatcher.Item<?>> list;
+
+        public MetaData() {
+            this.list = new ArrayList<>(Arrays.asList(
+                    this.entityState,
+                    this.airTicks,
+                    this.customName,
+                    this.customNameVisible,
+                    this.silent,
+                    this.noGravity,
+                    this.pose,
+                    this.frozenTicks,
+                    this.handStatus,
+                    this.health,
+                    this.potionEffectColor,
+                    this.isPotionEffectAmbient,
+                    this.arrowsInEntity,
+                    this.beeStingers,
+                    this.sleepingBedLocation,
+                    this.additionalHearts,
+                    this.score,
+                    this.skinStatus,
+                    this.hand,
+                    this.leftShoulder,
+                    this.rightShoulder));
         }
 
-        public int getMask() {
-            return mask;
+        public List<EntityState> getEntityState() {
+            return EnumUtil.fromMask(entityState.b(), EntityState.class);
         }
 
-        public static int createMask(EntityState... entityStates) {
+        public Integer getAirTicks() {
+            return airTicks.b();
+        }
+
+        public Optional<IChatBaseComponent> getCustomName() {
+            return customName.b();
+        }
+
+        public Boolean isCustomNameVisible() {
+            return customNameVisible.b();
+        }
+
+        public Boolean isSilent() {
+            return silent.b();
+        }
+
+        public Boolean hasNoGravity() {
+            return noGravity.b();
+        }
+
+        public Pose getPose() {
+            return EnumUtil.getByID(this.pose.b(), Pose.class);
+        }
+
+        public Integer getFrozenTicks() {
+            return frozenTicks.b();
+        }
+
+        public List<HandStatus> getHandStatus() {
+            return EnumUtil.fromMask(handStatus.b(), HandStatus.class);
+        }
+
+        public Float getHealth() {
+            return health.b();
+        }
+
+        public Integer getPotionEffectColor() {
+            return potionEffectColor.b();
+        }
+
+        public Boolean isPotionEffectAmbient() {
+            return isPotionEffectAmbient.b();
+        }
+
+        public Integer getArrowsInEntity() {
+            return arrowsInEntity.b();
+        }
+
+        public Integer getBeeStingers() {
+            return beeStingers.b();
+        }
+
+        public Optional<BlockPosition> getSleepingBedLocation() {
+            return sleepingBedLocation.b();
+        }
+
+        public Float getAdditionalHearts() {
+            return additionalHearts.b();
+        }
+
+        public Integer getScore() {
+            return score.b();
+        }
+
+        public List<SkinStatus> getSkinStatus() {
+            return EnumUtil.fromMask(skinStatus.b(), SkinStatus.class);
+        }
+
+        public Hand getHand() {
+            return EnumUtil.getBySecondID((int) hand.b(), Hand.class);
+        }
+
+        public NBTTagCompound getLeftShoulder() {
+            return leftShoulder.b();
+        }
+
+        public NBTTagCompound getRightShoulder() {
+            return rightShoulder.b();
+        }
+
+        public void setEntityState(EntityState... entityState) {
+            this.entityState.a((byte) EnumUtil.createMask(entityState));
+        }
+
+        public void setAirTicks(Integer airTicks) {
+            this.airTicks.a(airTicks);
+        }
+
+        public void setCustomName(String customName) {
+            this.customName.a(Optional.ofNullable(IChatBaseComponent.a(customName)));
+        }
+
+        public void setCustomNameVisible(Boolean customNameVisible) {
+            this.customNameVisible.a(customNameVisible);
+        }
+
+        public void setSilent(Boolean silent) {
+            this.silent.a(silent);
+        }
+
+        public void setNoGravity(Boolean gravity) {
+            this.noGravity.a(gravity);
+        }
+
+        public void setPose(Pose pose) {
+            this.pose.a(pose.getID());
+        }
+
+        public void setFrozenTicks(Integer frozenTicks) {
+            this.frozenTicks.a(frozenTicks);
+        }
+
+        public void setShaking(boolean shaking) {
+            this.setFrozenTicks(shaking ? 140 : 0);
+        }
+
+        public void setHandStatus(HandStatus handStatus) {
+            this.handStatus.a((byte) EnumUtil.createMask(handStatus));
+        }
+
+        public void setHealth(Float health) {
+            this.health.a(health);
+        }
+
+        public void setPotionEffectColor(Integer potionEffectColor) {
+            this.potionEffectColor.a(potionEffectColor);
+        }
+
+        public void setIsPotionEffectAmbient(Boolean isPotionEffectAmbient) {
+            this.isPotionEffectAmbient.a(isPotionEffectAmbient);
+        }
+
+        public void setArrowsInEntity(Integer arrowsInEntity) {
+            this.arrowsInEntity.a(arrowsInEntity);
+        }
+
+        public void setBeeStingers(Integer beeStingers) {
+            this.beeStingers.a(beeStingers);
+        }
+
+        public void setSleepingBedLocation(BlockPosition sleepingBedLocation) {
+            this.sleepingBedLocation.a(Optional.ofNullable(sleepingBedLocation));
+        }
+
+        public void setAdditionalHearts(Float additionalHearts) {
+            this.additionalHearts.a(additionalHearts);
+        }
+
+        public void setScore(Integer score) {
+            this.score.a(score);
+        }
+
+        public void setSkinStatus(SkinStatus... skinStatus) {
+            this.skinStatus.a((byte) EnumUtil.createMask(skinStatus));
+        }
+
+        public void setHand(Hand hand) {
+            this.hand.a((byte) ((int) hand.getSecondID()));
+        }
+
+        public void setLeftShoulder(NBTTagCompound leftShoulder) {
+            this.leftShoulder.a(leftShoulder);
+        }
+
+        public void setRightShoulder(NBTTagCompound rightShoulder) {
+            this.rightShoulder.a(rightShoulder);
+        }
+
+        public List<DataWatcher.Item<?>> getList() {
+            return list;
+        }
+
+        private static <T> DataWatcher.Item<T> a(int index, T value) {
+            DataWatcherSerializer<?> serializer = null;
+
+            if (value instanceof Byte) {
+                serializer = DataWatcherRegistry.a;
+            } else if (value instanceof Float) {
+                serializer = DataWatcherRegistry.c;
+            } else if (value instanceof Integer) {
+                serializer = DataWatcherRegistry.b;
+            } else if (value instanceof String) {
+                serializer = DataWatcherRegistry.d;
+            } else if (value instanceof Boolean) {
+                serializer = DataWatcherRegistry.i;
+            } else if (value instanceof NBTTagCompound) {
+                serializer = DataWatcherRegistry.q;
+            } else if (value instanceof BlockPosition) {
+                serializer = DataWatcherRegistry.m;
+            } else if (value instanceof IChatBaseComponent) {
+                serializer = DataWatcherRegistry.e;
+            } else if (value instanceof EntityPose) {
+                serializer = DataWatcherRegistry.t;
+            }
+            return a(index, value, (DataWatcherSerializer<T>) serializer);
+        }
+
+        private static <T> DataWatcher.Item<T> a(int index, T value, DataWatcherSerializer<T> serializer) {
+            return new DataWatcher.Item<T>(new DataWatcherObject<T>(index, serializer), value);
+        }
+
+    }
+
+    public static class EnumUtil {
+
+        private interface Maskable<M> {
+            int getMask();
+        }
+
+        private interface Identifiable<I> {
+
+            I getID();
+
+        }
+
+        private interface BiIdentifiable<I, J> extends Identifiable<I> {
+
+            J getSecondID();
+        }
+
+        @SafeVarargs
+        private static <M> int createMask(Maskable<M>... maskables) {
             int mask = 0;
-            for(EntityState entityState : entityStates) {
-                mask |= entityState.mask;
+            for (Maskable m : maskables) {
+                mask |= m.getMask();
             }
             return mask;
         }
 
-        public static EntityState[] fromMask(int mask) {
-            List<EntityState> list = new ArrayList<>();
-            for(EntityState entityState : values()) {
-                if((entityState.mask & mask) == entityState.mask) {
-                    list.add(entityState);
+        private static <M extends Maskable<M>> List<M> fromMask(int mask, Class<M> enumClass) {
+            List<M> list = new ArrayList<M>();
+            for (M maskable : enumClass.getEnumConstants()) {
+                if ((maskable.getMask() & mask) != 0) {
+                    list.add(maskable);
                 }
             }
-            return list.toArray(new EntityState[list.size()]);
-        }
-    }
-
-    public enum Gamemode {
-
-        SURVIVAL(EnumGamemode.a),
-        CREATIVE(EnumGamemode.b),
-        ADVENTURE(EnumGamemode.c),
-        SPECTATOR(EnumGamemode.d);
-
-        private final EnumGamemode gamemode;
-
-        Gamemode(EnumGamemode gamemode) {
-            this.gamemode = gamemode;
+            return list;
         }
 
-        public EnumGamemode getGamemode() {
-            return gamemode;
-        }
-    }
-
-    public enum PlayerInfo {
-
-        ADD_PLAYER(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.a),
-        UPDATE_GAME_MODE(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.b),
-        UPDATE_LATENCY(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.c),
-        UPDATE_DISPLAY_NAME(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.d),
-        REMOVE_PLAYER(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.e);
-
-        private final PacketPlayOutPlayerInfo.EnumPlayerInfoAction playerInfo;
-
-        PlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction a) {
-            this.playerInfo = a;
+        private static <I, M extends Identifiable<I>> M getByID(I id, Class<M> enumClass) {
+            for (M identifiable : enumClass.getEnumConstants()) {
+                if (id == identifiable.getID()) {
+                    return identifiable;
+                }
+            }
+            return null;
         }
 
-        public PacketPlayOutPlayerInfo.EnumPlayerInfoAction getPlayerInfo() {
-            return playerInfo;
-        }
-    }
-
-    public enum Ping {
-
-        NO_CONNECTION(-1),
-        ONE_BAR(1000),
-        TWO_BARS(999),
-        THREE_BARS(599),
-        FOUR_BARS(299),
-        FIVE_BARS(149);
-
-        private final int milliseconds;
-
-        Ping(int milliseconds) {
-            this.milliseconds = milliseconds;
-        }
-
-        public int getMilliseconds() {
-            return milliseconds;
+        private static <I, J, M extends BiIdentifiable<I, J>> M getBySecondID(J id, Class<M> enumClass) {
+            for (M identifiable : enumClass.getEnumConstants()) {
+                if (id == identifiable.getID()) {
+                    return identifiable;
+                }
+            }
+            return null;
         }
     }
 
@@ -1023,153 +1084,243 @@ public class NPC {
             return signature;
         }
 
-        public static void getByUsername(Plugin plugin, String username, BiConsumer<Boolean, SkinTextures> callback) {
-            new BukkitRunnable(){
-                @Override
-                public void run() {
-                    JSONArray array = new JSONArray();
-                    array.add(username);
-                    UUID result = null;
-
-                    try {
-                        HttpRequest request = HttpRequest.newBuilder(new URI(UUID_URL))
-                                .setHeader("Content-Type", "application/json")
-                                .POST(HttpRequest.BodyPublishers.ofString(array.toString()))
-                                .timeout(Duration.ofSeconds(5))
-                                .build();
-
-                        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-                        if(response.statusCode() == HttpURLConnection.HTTP_OK) {
-                            JSONArray uuidArray = (JSONArray) new JSONParser().parse(response.body());
-                            if(uuidArray.size() > 0) {
-                                String uuidStr = (String) ((JSONObject) uuidArray.get(0)).get("id");
-                                result = UUID.fromString(uuidStr.replaceAll("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5"));
-                            }
-                        }
-
-                    } catch (URISyntaxException | InterruptedException | IOException | ParseException e) {
-                        e.printStackTrace();
-                    }
-
-                    if(result == null) {
-                        new BukkitRunnable(){
-                            @Override
-                            public void run() {
-                                callback.accept(false, null);
-                            }
-                        }.runTask(plugin);
-                    } else {
-                        SkinTextures.getByUUID(plugin, result, callback);
-                    }
-                }
-            }.runTaskAsynchronously(plugin);
-        }
-
-        public static void getByUUID(Plugin plugin, UUID uuid, BiConsumer<Boolean, SkinTextures> callback) {
-            new BukkitRunnable(){
-                @Override
-                public void run() {
-                    SkinTextures result = null;
-
-                    try {
-                        HttpRequest request = HttpRequest.newBuilder(new URI(String.format(TEXTURE_URL, uuid.toString().replace("-", ""))))
-                                .timeout(Duration.ofSeconds(5))
-                                .GET()
-                                .build();
-
-                        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-
-                        if(response.statusCode() == HttpURLConnection.HTTP_OK) {
-                            JSONArray properties = (JSONArray) ((JSONObject) new JSONParser().parse(response.body())).get("properties");
-                            for(int t = 0; t < properties.size(); t++) {
-                                JSONObject obj = (JSONObject) properties.get(t);
-                                if(obj.containsKey("name") && obj.get("name").equals("textures")) {
-                                    result = new SkinTextures((String)obj.get("value"), (String)obj.get("signature"));
-                                }
-                            }
-                        }
-
-                    } catch (URISyntaxException | InterruptedException | IOException | ParseException e) {
-                        e.printStackTrace();
-                    }
-
-                    final SkinTextures skinTextures = result;
-
-                    new BukkitRunnable(){
-                        @Override
-                        public void run() {
-                            if(skinTextures == null) {
-                                callback.accept(false, null);
-                            } else {
-                                callback.accept(true, skinTextures);
-                            }
-                        }
-                    }.runTask(plugin);
-                }
-            }.runTaskAsynchronously(plugin);
-        }
-
-        public static CompletableFuture<SkinTextures> getByUsername(String username) {
-            return CompletableFuture.supplyAsync(()->{
+        public static BukkitCompletable<SkinTextures> getByUsername(Plugin plugin, String username) {
+            return BukkitCompletable.supplyASync(plugin, ()->{
                 JSONArray array = new JSONArray();
                 array.add(username);
-                UUID result = null;
-                try {
-                    HttpRequest request = HttpRequest.newBuilder(new URI(UUID_URL))
-                            .setHeader("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString(array.toString()))
-                            .timeout(Duration.ofSeconds(5))
-                            .build();
-
-                    HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-                    if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-                        JSONArray uuidArray = (JSONArray) new JSONParser().parse(response.body());
-                        if (uuidArray.size() > 0) {
-                            String uuidStr = (String) ((JSONObject) uuidArray.get(0)).get("id");
-                            result = UUID.fromString(uuidStr.replaceAll("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5"));
-                        }
+                UUID uuid = null;
+                HttpRequest request = HttpRequest.newBuilder(new URI(UUID_URL))
+                        .setHeader("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(array.toString()))
+                        .timeout(Duration.ofSeconds(5))
+                        .build();
+                HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == HttpURLConnection.HTTP_OK) {
+                    JSONArray uuidArray = (JSONArray) new JSONParser().parse(response.body());
+                    if (uuidArray.size() > 0) {
+                        String uuidStr = (String) ((JSONObject) uuidArray.get(0)).get("id");
+                        uuid = UUID.fromString(uuidStr.replaceAll("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5"));
                     }
-                } catch (URISyntaxException | InterruptedException | IOException | ParseException e) {
-                    e.printStackTrace();
                 }
-                if(result == null)
-                    throw new IllegalArgumentException("SkinTextures not found by username");
-                else {
-                    return getByUUID(result).join();
-                }
+                if (uuid == null) throw new NullPointerException("uuid is null");
+                return getByUUID(plugin, uuid).getSync();
             });
         }
 
-        public static CompletableFuture<SkinTextures> getByUUID(UUID uuid) {
-            return CompletableFuture.supplyAsync(()->{
+        public static BukkitCompletable<SkinTextures> getByUUID(Plugin plugin, UUID uuid) {
+            return BukkitCompletable.supplyASync(plugin, ()->{
                 SkinTextures result = null;
-                try {
-                    HttpRequest request = HttpRequest.newBuilder(new URI(String.format(TEXTURE_URL, uuid.toString().replace("-", ""))))
-                            .timeout(Duration.ofSeconds(5))
-                            .GET().build();
-
-                    HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-                    if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-                        JSONArray properties = (JSONArray) ((JSONObject) new JSONParser().parse(response.body())).get("properties");
-                        for (int t = 0; t < properties.size(); t++) {
-                            JSONObject obj = (JSONObject) properties.get(t);
-                            if (obj.containsKey("name") && obj.get("name").equals("textures")) {
-                                result = new SkinTextures((String) obj.get("value"), (String) obj.get("signature"));
-                            }
+                HttpRequest request = HttpRequest.newBuilder(new URI(String.format(TEXTURE_URL, uuid.toString().replace("-", ""))))
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
+                HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == HttpURLConnection.HTTP_OK) {
+                    JSONArray properties = (JSONArray) ((JSONObject) new JSONParser().parse(response.body())).get("properties");
+                    for (int t = 0; t < properties.size(); t++) {
+                        JSONObject obj = (JSONObject) properties.get(t);
+                        if (obj.containsKey("name") && obj.get("name").equals("textures")) {
+                            result = new SkinTextures((String) obj.get("value"), (String) obj.get("signature"));
                         }
                     }
-                } catch (URISyntaxException | InterruptedException | IOException | ParseException e) {
-                    e.printStackTrace();
                 }
-                if(result==null)
-                    throw new IllegalArgumentException("SkinTextures not found by uuid");
-                else
-                    return result;
+                return result;
             });
         }
     }
 
-    private void unsafe(UnsafeRunnable run) {
+    public static class BukkitCompletable<T> {
+
+        private final Plugin plugin;
+        private final UnsafeSupplier<T> runnable;
+        private Consumer<Throwable> errorHandler;
+        private Consumer<T> callbackHandler;
+        private Runnable emptyCallbackHandler;
+
+        private BukkitCompletable(Plugin plugin, UnsafeSupplier<T> runnable) {
+            this.plugin = plugin;
+            this.runnable = runnable;
+        }
+
+        public static <T> BukkitCompletable<T> supplyASync(Plugin plugin, UnsafeSupplier<T> runnable) {
+            return new BukkitCompletable<T>(plugin, runnable);
+        }
+
+        public BukkitCompletable<T> onFinish(Consumer<T> callbackHandler) {
+            this.callbackHandler = callbackHandler;
+            return this;
+        }
+
+        public BukkitCompletable<T> onEmptyFinish(Runnable emptyCallbackHandler) {
+            this.emptyCallbackHandler = emptyCallbackHandler;
+            return this;
+        }
+
+        public BukkitCompletable<T> onException(Consumer<Throwable> errorHandler) {
+            this.errorHandler = errorHandler;
+            return this;
+        }
+
+        public void getSafe() {
+            this.get(true);
+        }
+
+        public void getUnsafe() {
+            this.get(false);
+        }
+
+        public T getSync() throws Exception {
+            return runnable.get();
+        }
+
+        private void get(boolean safe) {
+            async(plugin, ()->{
+                try {
+                    T t = this.runnable.get();
+                    if(!(this.callbackHandler == null && this.emptyCallbackHandler == null)) {
+                        if(safe) {
+                            sync(plugin, () -> {
+                                if (callbackHandler != null) this.callbackHandler.accept(t);
+                                if (emptyCallbackHandler != null) this.emptyCallbackHandler.run();
+                            });
+                        } else {
+                            if(callbackHandler != null) this.callbackHandler.accept(t);
+                            if(emptyCallbackHandler != null) this.emptyCallbackHandler.run();
+                        }
+                    }
+                } catch (Throwable e) {
+                    if(this.errorHandler != null) {
+                        if(safe) sync(plugin, ()->this.errorHandler.accept(e));
+                        else this.errorHandler.accept(e);
+                    }
+                }
+            });
+        }
+    }
+
+    private static class EventManager implements Listener {
+
+        private static final String CHANNEL_NAME = "npc_manager";
+        private static EventManager INSTANCE;
+
+        private final Plugin plugin;
+        private final Map<Integer, NPCListener> listenerMap = new HashMap<>();
+
+        private EventManager(Plugin plugin) {
+            this.plugin = plugin;
+            Bukkit.getPluginManager().registerEvents(this, plugin);
+            Bukkit.getOnlinePlayers().forEach(this::unregisterPlayer);
+            Bukkit.getOnlinePlayers().forEach(this::registerPlayer);
+        }
+
+        private void listenNPC(NPC npc, NPCListener listener) {
+            if (listenerMap.containsKey(npc.getEntityID()))
+                throw new UnsupportedOperationException("cannot register same npc twice");
+            this.listenerMap.put(npc.getEntityID(), listener);
+        }
+
+        private void unlistenNPC(NPC npc) {
+            if (!listenerMap.containsKey(npc.getEntityID())) throw new NullPointerException("listener does not exist");
+            this.listenerMap.remove(npc.getEntityID());
+        }
+
+        private void unregisterPlayer(Player player) {
+            ChannelPipeline pipeline = ((CraftPlayer) player).getHandle().b.b.m.pipeline();
+            if(pipeline.names().contains(CHANNEL_NAME)) {
+                pipeline.remove(CHANNEL_NAME);
+            }
+        }
+
+        private void registerPlayer(Player player) {
+            ChannelPipeline pipeline = ((CraftPlayer) player).getHandle().b.b.m.pipeline();
+            if(!pipeline.names().contains(CHANNEL_NAME)) {
+                pipeline.addBefore("packet_handler", CHANNEL_NAME, new PlayerInboundHandlerAdapter(player));
+            }
+        }
+
+        @EventHandler(priority = EventPriority.LOWEST)
+        public void onPlayerJoinEvent(PlayerJoinEvent e) {
+            this.registerPlayer(e.getPlayer());
+        }
+
+        public static boolean isInitialized() {
+            return INSTANCE != null;
+        }
+
+        public static void init(Plugin plugin) {
+            if(INSTANCE != null) INSTANCE.listenerMap.clear();
+            INSTANCE = new EventManager(plugin);
+        }
+
+        private class PlayerInboundHandlerAdapter extends ChannelInboundHandlerAdapter {
+
+            private final Player player;
+
+            public PlayerInboundHandlerAdapter(Player player) {
+                this.player = player;
+            }
+
+            @Override
+            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                if(msg instanceof PacketPlayInSteerVehicle packet) {
+                    Bukkit.broadcastMessage(String.format("x: %s, z: %s, jump: %s, shift: %s", packet.b(), packet.c(), packet.d(), packet.e()));
+                }
+
+                super.channelRead(ctx, msg);
+                try {
+                    if (msg instanceof PacketPlayInUseEntity packet) {
+                        Field entityIdField = packet.getClass().getDeclaredField("a");
+                        entityIdField.setAccessible(true);
+                        int entityId = (int) entityIdField.get(packet);
+                        final NPCListener listener = listenerMap.getOrDefault(entityId, null);
+                        if (listener != null) {
+                            Field typeField = packet.getClass().getDeclaredField("b");
+                            typeField.setAccessible(true);
+                            Object type = typeField.get(packet);
+                            Method typeMethod = type.getClass().getDeclaredMethod("a");
+                            typeMethod.setAccessible(true);
+                            InteractType interactType = EnumUtil.getByID(((Enum) typeMethod.invoke(type)).name(), InteractType.class);
+                            Hand hand = Hand.MAIN_HAND;
+                            if (interactType != InteractType.RIGHT_CLICK_AT) {
+                                if (interactType == InteractType.RIGHT_CLICK) {
+                                    Field handField = type.getClass().getDeclaredField("a");
+                                    handField.setAccessible(true);
+                                    hand = EnumUtil.getByID((EnumHand) handField.get(type), Hand.class);
+                                }
+                                boolean sneaking = packet.b();
+                                final NPCInteractEvent event = new NPCInteractEvent(this.player, interactType, hand, sneaking);
+                                Bukkit.getScheduler().runTask(plugin, () -> listener.accept(event));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                ;
+            }
+        }
+    }
+
+    public record TeamFeatures(boolean nameTagVisible, boolean collision, GlowColor glowColor) {}
+
+    public record NPCInteractEvent(Player player, InteractType interactType, Hand hand, boolean sneaking) {
+    }
+
+    public static void sync(Plugin plugin, Runnable runnable) {
+        Bukkit.getScheduler().runTask(plugin, runnable);
+    }
+
+    public static void async(Plugin plugin, Runnable runnable) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable);
+    }
+
+    public static void sleep(int milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {}
+    }
+
+    private static void unsafe(UnsafeRunnable run) {
         try {
             run.run();
         } catch (Exception e) {
@@ -1177,7 +1328,7 @@ public class NPC {
         }
     }
 
-    private <T> T createDataSerializer(UnsafeFunction<PacketDataSerializer, T> callback) {
+    private static <T> T createDataSerializer(UnsafeFunction<PacketDataSerializer, T> callback) {
         PacketDataSerializer data = new PacketDataSerializer(Unpooled.buffer());
         T result = null;
         try {
@@ -1191,6 +1342,11 @@ public class NPC {
     }
 
     @FunctionalInterface
+    private interface UnsafeSupplier<T> {
+        T get() throws Exception;
+    }
+
+    @FunctionalInterface
     private interface UnsafeRunnable {
         void run() throws Exception;
     }
@@ -1198,5 +1354,9 @@ public class NPC {
     @FunctionalInterface
     private interface UnsafeFunction<K, T> {
         T apply(K k) throws Exception;
+    }
+
+    @FunctionalInterface
+    public interface NPCListener extends Consumer<NPCInteractEvent> {
     }
 }
