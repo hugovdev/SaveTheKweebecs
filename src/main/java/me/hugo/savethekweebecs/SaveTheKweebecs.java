@@ -86,7 +86,7 @@ public class SaveTheKweebecs extends JavaPlugin {
         this.skinsRestorerAPI = SkinsRestorerAPI.getApi();
         this.abilityManager = new AbilityManager();
         this.worldPropertyManager = new WorldPropertyManager();
-        this.skinManager = new SkinManager();
+        this.skinManager = new SkinManager(skinsRestorerAPI);
 
         this.bossBar = Bukkit.createBossBar("§e§lHYTALE THANKMAS", BarColor.YELLOW, BarStyle.SEGMENTED_6);
 
