@@ -70,6 +70,10 @@
 
     <repositories>
         <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+        <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
@@ -112,6 +116,19 @@
             <groupId>fr.minuskube</groupId>
             <artifactId>netherboard-core</artifactId>
             <version>1.2.3</version>
+        </dependency>
+        <!-- For the common module -->
+        <dependency>
+            <groupId>com.github.Revxrsal.Lamp</groupId>
+            <artifactId>common</artifactId>
+            <version>3.0.8</version>
+        </dependency>
+
+        <!-- For the bukkit module -->
+        <dependency>
+            <groupId>com.github.Revxrsal.Lamp</groupId>
+            <artifactId>bukkit</artifactId>
+            <version>3.0.8</version>
         </dependency>
         <dependency>
             <groupId>fr.minuskube</groupId>

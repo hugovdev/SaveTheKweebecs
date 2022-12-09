@@ -50,7 +50,7 @@ public class ArenaSetup implements Listener {
         arenaSetupMenu.setIcon(11, new Icon(new ItemBuilder(Material.OAK_SAPLING, 1)
                 .setName("&aAdd Kweebec Spawnpoint")
                 .setLoreWithWrap("&7Click to add a Kweebec spawnpoint.\n\n&fSpawnpoints: " + game.getKweebecSpawns().size() + "\n\n&eClick to add!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             Location playerLocation = player1.getLocation();
             game.getKweebecSpawns().add(playerLocation);
             player1.sendMessage(StringUtility.format("&eYou added a kweebec spawnpoint."));
@@ -61,7 +61,7 @@ public class ArenaSetup implements Listener {
                 .setName("&aMap Name")
                 .setLoreWithWrap("&7Click to add a a Map Name.\n\n" + "&fCurrent Name: &a"
                         + (game.getMapName() == null ? "None" : game.getMapName()) + "\n\n&eClick to change!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             player1.closeInventory();
             player1.sendMessage(StringUtility.format("&e&lType in chat the new map name you want."));
             currentSetting = "mapName";
@@ -70,7 +70,7 @@ public class ArenaSetup implements Listener {
         arenaSetupMenu.setIcon(15, new Icon(new ItemBuilder(Material.IRON_AXE, 1)
                 .setName("&aAdd Trork Spawnpoint")
                 .setLoreWithWrap("&7Click to add a Trork spawnpoint.\n\n&fSpawnpoints: " + game.getTrorkSpawns().size() + "\n\n&eClick to add!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             Location playerLocation = player1.getLocation();
             game.getTrorkSpawns().add(playerLocation);
             player1.sendMessage(StringUtility.format("&eYou added a trork spawnpoint."));
@@ -80,7 +80,7 @@ public class ArenaSetup implements Listener {
         arenaSetupMenu.setIcon(29, new Icon(new ItemBuilder(Material.SEA_PICKLE, 1)
                 .setName("&aAdd Kweebec NPC Spawnpoint")
                 .setLoreWithWrap("&7Click to add a Kweebec NPC spawnpoint.\n\n&fSpawnpoints: " + game.getKweebecNPCSpawns().size() + "\n\n&eClick to add!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             Location playerLocation = player1.getLocation();
             game.getKweebecNPCSpawns().add(playerLocation);
             player1.sendMessage(StringUtility.format("&eYou added a kweebec NPC spawnpoint."));
@@ -91,7 +91,7 @@ public class ArenaSetup implements Listener {
                 .setName("&aMinimum Players")
                 .setLoreWithWrap("&7Click to change the minimum players for this map.\n\n" + "&fMinumum Players: &a"
                         + game.getMinPlayers() + "\n\n&eClick to change!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             player1.closeInventory();
             player1.sendMessage(StringUtility.format("&e&lType in chat the minimum players for this map."));
             currentSetting = "minPlayers";
@@ -101,7 +101,7 @@ public class ArenaSetup implements Listener {
                 .setName("&aMaximum Players")
                 .setLoreWithWrap("&7Click to change the maximum players for this map.\n\n" + "&fMaximum Players: &a"
                         + game.getMaxPlayers() + "\n\n&eClick to change!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             player1.closeInventory();
             player1.sendMessage(StringUtility.format("&e&lType in chat the maximum players for this map."));
             currentSetting = "maxPlayers";
@@ -111,7 +111,7 @@ public class ArenaSetup implements Listener {
                 .setName("&aPlayers per Team")
                 .setLoreWithWrap("&7Click to change the players per team for this map.\n\n" + "&fPlayers Per Team: &a"
                         + game.getPlayersPerTeam() + "\n\n&eClick to change!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             player1.closeInventory();
             player1.sendMessage(StringUtility.format("&e&lType in chat the players per team for this map."));
             currentSetting = "playersPerTeam";
@@ -120,7 +120,7 @@ public class ArenaSetup implements Listener {
         arenaSetupMenu.setIcon(46, new Icon(new ItemBuilder(Material.GOLDEN_APPLE, 1)
                 .setName("&aSpectator Spawn")
                 .setLoreWithWrap("&7Click to set your location as the spectator spawn." + "\n\n&eClick to change!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             game.setSpectatorLocation(player.getLocation());
             player1.sendMessage(StringUtility.format("&eSet spectator spawn to your location."));
             updateArenaCreator(player);
@@ -129,7 +129,7 @@ public class ArenaSetup implements Listener {
         arenaSetupMenu.setIcon(45, new Icon(new ItemBuilder(Material.NETHER_STAR, 1)
                 .setName("&aLobby Spawn")
                 .setLoreWithWrap("&7Click to set your location as the lobby spawn." + "\n\n&eClick to change!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             game.setLobbyLocation(player.getLocation());
             player1.sendMessage(StringUtility.format("&eSet lobby spawn to your location."));
             updateArenaCreator(player);
@@ -138,7 +138,7 @@ public class ArenaSetup implements Listener {
         arenaSetupMenu.setIcon(50, new Icon(new ItemBuilder(Material.NETHER_STAR, 1)
                 .setName("&aMain lobby")
                 .setLoreWithWrap("&7Click to set your location as the MAIN lobby spawn." + "\n\n&eClick to change!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             SaveTheKweebecs.getPlugin().setMainLobby(player.getLocation());
             player1.sendMessage(StringUtility.format("&eSet main lobby spawn to your location."));
             updateArenaCreator(player);
@@ -147,7 +147,7 @@ public class ArenaSetup implements Listener {
         arenaSetupMenu.setIcon(51, new Icon(new ItemBuilder(Material.GREEN_TERRACOTTA, 1)
                 .setName("&aSave")
                 .setLoreWithWrap("&7Click to save this map in the config." + "\n\n&eClick to change!", 35)
-                .toItemStack()).addClickAction((player1, type) -> {
+                .toItemStack()).addClickAction((player1, type, main) -> {
             if (SaveTheKweebecs.getPlugin().getMainLobby() != null) {
                 SaveTheKweebecs.getPlugin().getConfig().set("mainLobbyLocation", LocationUtil.getStringByLocation(SaveTheKweebecs.getPlugin().getMainLobby()));
                 player.sendMessage(StringUtility.format("&eMain Lobby location saved!"));

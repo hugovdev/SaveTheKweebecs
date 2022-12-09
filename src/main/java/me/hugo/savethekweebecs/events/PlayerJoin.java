@@ -17,6 +17,12 @@ import org.bukkit.event.player.PlayerJoinEvent;
 
 public class PlayerJoin implements Listener {
 
+    private final SaveTheKweebecs main;
+
+    public PlayerJoin(SaveTheKweebecs main) {
+        this.main = main;
+    }
+
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
@@ -32,7 +38,7 @@ public class PlayerJoin implements Listener {
                 gamePlayer.getPlayerBoard().set("Players: §a" + Bukkit.getOnlinePlayers().size(), 3);
         }
 
-        SaveTheKweebecs.getPlugin().getDefaultGame().getClickAction().execute(player, ClickType.LEFT);
+        SaveTheKweebecs.getPlugin().getDefaultGame().getClickAction().execute(player, ClickType.LEFT, main);
 
         for (Player p : Bukkit.getServer().getOnlinePlayers()) {
             if (p.getWorld() == player.getWorld()) {
@@ -43,9 +49,6 @@ public class PlayerJoin implements Listener {
             p.hidePlayer(SaveTheKweebecs.getPlugin(), player);
             player.hidePlayer(SaveTheKweebecs.getPlugin(), p);
         }
-
-        player.setPlayerListHeader("\n§b§lHYTALE THANKMAS\n\n§7Remember to donate to charity with the\n§7link on the description!\n");
-        player.setPlayerListFooter("\n§eHosted by ThoriumCube\n§aevents.thoriumcu.be\n");
 
         SaveTheKweebecs.getPlugin().getBossBar().addPlayer(player);
     }

@@ -3,7 +3,6 @@ package me.hugo.savethekweebecs.player;
 import me.hugo.savethekweebecs.SaveTheKweebecs;
 import me.hugo.savethekweebecs.cosmetics.Suit;
 import me.hugo.savethekweebecs.utils.ItemBuilder;
-import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
@@ -20,13 +19,16 @@ import java.util.UUID;
 
 public class PlayerManager {
 
-    private HashMap<UUID, GamePlayer> gamePlayers;
+    private final SaveTheKweebecs main;
+
+    private final HashMap<UUID, GamePlayer> gamePlayers;
 
     public final ItemStack SUIT_MENU_INDICATOR;
     public final ItemStack BANNER_MENU_INDICATOR;
     public final ItemStack SHOP_MENU_INDICATOR;
 
-    public PlayerManager() {
+    public PlayerManager(SaveTheKweebecs main) {
+        this.main = main;
         this.gamePlayers = new HashMap<>();
         this.SUIT_MENU_INDICATOR = new ItemBuilder(Material.LEATHER_CHESTPLATE).setName("§aSuit Wardrobe").setLoreWithWrap("§7Select a suit and wear it on the lobby! Represent your favorite creatures, community, etc.", 35).hideEnch().toItemStack();
         this.BANNER_MENU_INDICATOR = new ItemBuilder(Material.RED_BANNER).setName("§aBanner Wardrobe").setLoreWithWrap("§7Select a banner and wear it in battle! Represent your country, community, etc.", 35).toItemStack();
@@ -37,7 +39,7 @@ public class PlayerManager {
         GamePlayer gamePlayer = gamePlayers.get(player.getUniqueId());
 
         if (gamePlayer == null) {
-            gamePlayer = new GamePlayer(player);
+            gamePlayer = new GamePlayer(player, main);
             gamePlayers.put(player.getUniqueId(), gamePlayer);
         }
 
@@ -57,7 +59,34 @@ public class PlayerManager {
         getGamePlayer(player).setBoard(null);
         preparePlayer(player, GameMode.ADVENTURE);
         player.getInventory().setItem(0, SaveTheKweebecs.getPlugin().getArenaSelector());
-        player.getInventory().setItem(8, SaveTheKweebecs.getPlugin().getGameSelector());
+        player.getInventory().setItem(8, SaveTheKweebecs.getPlugin().getBackToLobby());
+        player.getInventory().setItem(4, SaveTheKweebecs.getPlugin().getSuitSelector());
+
+        GamePlayer gamePlayer = SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player);
+
+        /*
+        Reset game stats. No permanent stats.
+         */
+        gamePlayer.setKills(0);
+        gamePlayer.setGold(0);
+        gamePlayer.setKweebecsSaved(0);
+        gamePlayer.setTotalGoldSpent(0);
+        gamePlayer.setDeaths(0);
+
+        gamePlayer.giveBannerSelectorItem(player);
+        if (gamePlayer.getSuit() != Suit.NONE) gamePlayer.getSuit().equip(player);
+
+        player.teleport(SaveTheKweebecs.getPlugin().getMainLobby());
+
+        removeScoreboardEntries(player);
+    }
+
+    public void sendToSTKLobby(Player player) {
+        SaveTheKweebecs.getPlugin().removePlayerGame(player);
+        getGamePlayer(player).setBoard(null);
+        preparePlayer(player, GameMode.ADVENTURE);
+        player.getInventory().setItem(0, SaveTheKweebecs.getPlugin().getArenaSelector());
+        player.getInventory().setItem(8, SaveTheKweebecs.getPlugin().getBackToLobby());
         player.getInventory().setItem(4, SaveTheKweebecs.getPlugin().getSuitSelector());
 
         GamePlayer gamePlayer = SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player);

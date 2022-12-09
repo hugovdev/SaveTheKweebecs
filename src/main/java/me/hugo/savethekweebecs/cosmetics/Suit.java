@@ -101,7 +101,7 @@ public enum Suit {
     private ClickAction getClickAction() {
         Suit currentSuit = this;
 
-        return (player, type) -> {
+        return (player, type, main) -> {
             GamePlayer gamePlayer = SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player);
 
             if (gamePlayer.getSuit() == currentSuit) {

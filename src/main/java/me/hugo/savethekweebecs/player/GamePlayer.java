@@ -15,6 +15,7 @@ import me.hugo.savethekweebecs.utils.StringUtility;
 import me.hugo.savethekweebecs.utils.gui.Icon;
 import me.hugo.savethekweebecs.utils.gui.MenuHandler;
 import me.hugo.savethekweebecs.utils.gui.PaginatedGUI;
+import net.skinsrestorer.api.property.IProperty;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -29,6 +30,8 @@ import java.util.HashMap;
 import java.util.UUID;
 
 public class GamePlayer {
+
+    private final SaveTheKweebecs main;
 
     BPlayerBoard playerBoard;
     Player player;
@@ -57,9 +60,12 @@ public class GamePlayer {
 
     HashMap<String, Long> cooldowns;
 
-    public GamePlayer(Player player) {
+    IProperty playerSkin;
+
+    public GamePlayer(Player player, SaveTheKweebecs main) {
+        this.main = main;
         this.player = player;
-        this.playerBoard = Netherboard.instance().createBoard(player, "§b§l" + "SAVE THE KWEEBECS");
+        this.playerBoard = Netherboard.instance().createBoard(player, "§b§lTHANKMAS 2022");
         this.cooldowns = new HashMap<>();
 
         this.kills = 0;
@@ -85,6 +91,7 @@ public class GamePlayer {
         }
 
         this.currentGame = SaveTheKweebecs.getPlugin().getDefaultGame();
+        this.playerSkin = main.getSkinsRestorerAPI().getProfile(this.player.getUniqueId().toString());
 
         this.gameSelectorMenu = new MenuHandler(9 * 3, "Game Selector", "", null);
         updateGameSelector();
@@ -97,7 +104,7 @@ public class GamePlayer {
                     .hideEnch()
                     .setLoreWithWrap("&7" + globalGame.getDescription() + "\n\n" +
                             (this.currentGame == globalGame ? "&cYou're already here!" : (globalGame.isOpen() ? "&eClick to go!" : "&cGame is currently closed!")), 30).toItemStack())
-                    .addClickAction((player, type) -> {
+                    .addClickAction((player, type, main) -> {
                         if (SaveTheKweebecs.getPlugin().getPlayerGame(player) != null) {
                             player.sendMessage("§cPlease leave the §bmap§c you're on to join another §bgame§c!");
                         } else {
@@ -107,7 +114,7 @@ public class GamePlayer {
                                 if (this.currentGame != globalGame) {
                                     this.currentGame = globalGame;
                                     updateGameSelector();
-                                    globalGame.getClickAction().execute(player, type);
+                                    globalGame.getClickAction().execute(player, type, main);
                                 } else {
                                     player.sendMessage("§cYou're already playing §b" + globalGame.getName() + "§c!");
                                 }
@@ -184,7 +191,7 @@ public class GamePlayer {
                     "§a",
                     "Players: §a" + Bukkit.getOnlinePlayers().size(),
                     "§b",
-                    "§eDonate to charity!");
+                    "§ethankmas.skynode.pro");
             return;
         }
 
@@ -201,7 +208,7 @@ public class GamePlayer {
                     "Map: §a" + game.getMapName(),
                     "Players: §a" + game.getPlayerList().size() + "/" + game.getMaxPlayers(),
                     "§b",
-                    "§eDonate to charity!");
+                    "§ethankmas.skynode.pro");
         } else if (gameState == GameState.INGAME) {
             playerBoard.setAll("§7Teams " + dateFormat.format(new Date()),
                     "§a",
@@ -215,7 +222,7 @@ public class GamePlayer {
                     "Map: §a" + game.getMapName(),
                     "Mode: " + gameType.getTypeColor() + gameType.getTypeName(),
                     "§8",
-                    "§eDonate to charity!");
+                    "§ethankmas.skynode.pro");
         } else if (gameState == GameState.ENDING) {
             playerBoard.setAll("§7Teams " + dateFormat.format(new Date()),
                     "§c",
@@ -226,7 +233,7 @@ public class GamePlayer {
                     "§6",
                     "Map: §a" + game.getMapName(),
                     "§u",
-                    "§eDonate to charity!");
+                    "§ethankmas.skynode.pro");
         }
     }
 
@@ -309,6 +316,10 @@ public class GamePlayer {
 
     public void setKweebecsSaved(int kweebecsSaved) {
         this.kweebecsSaved = kweebecsSaved;
+    }
+
+    public IProperty getPlayerSkin() {
+        return playerSkin;
     }
 
     public int getTotalGoldSpent() {

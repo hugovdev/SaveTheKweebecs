@@ -136,7 +136,7 @@ public class PaginatedGUI {
         MenuHandler newPage = new MenuHandler(size, title, pageFormat, indicator);
 
         newPage.setIcon(newPage.getInventory().getSize() - 6,
-                new Icon(new ItemBuilder(page == 1 && previousMenu == null ? Material.DARK_OAK_DOOR : Material.ARROW).setName("&a" + (page == 1 ? (previousMenu == null ? "Close" : "Go Back") : "Previous Page &7(" + index + ")")).toItemStack()).addClickAction((player, type) -> {
+                new Icon(new ItemBuilder(page == 1 && previousMenu == null ? Material.DARK_OAK_DOOR : Material.ARROW).setName("&a" + (page == 1 ? (previousMenu == null ? "Close" : "Go Back") : "Previous Page &7(" + index + ")")).toItemStack()).addClickAction((player, type, main) -> {
                     if (page != 1) {
                         open(player, previousIndex);
                     } else if (previousMenu != null)
@@ -149,7 +149,7 @@ public class PaginatedGUI {
         if (index >= 1) {
             MenuHandler lastMenuHandler = pages.get(previousIndex);
             lastMenuHandler.setIcon(lastMenuHandler.getInventory().getSize() - 4, new Icon(new ItemBuilder(Material.ARROW)
-                    .setName("&aNext Page &7(" + page + ")").toItemStack()).addClickAction((player, type) -> {
+                    .setName("&aNext Page &7(" + page + ")").toItemStack()).addClickAction((player, type, main) -> {
                 open(player, thatIndex);
                 player.playSound(player.getLocation(), Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 1.0f, 1.0f);
             }));

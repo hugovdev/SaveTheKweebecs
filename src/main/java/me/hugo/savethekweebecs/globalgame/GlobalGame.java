@@ -8,27 +8,14 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 public enum GlobalGame {
-
     SAVE_THE_KWEEBECS("Save The Kweebecs", "Pick a team and save or defend those kweebecs! Use abilities and kill your enemies to get more gold!",
-            14, new ItemStack(Material.WOODEN_AXE), (player, type) -> {
-        SaveTheKweebecs.getPlugin().getPlayerManager().sendToLobby(player);
-        player.sendTitle("§b§lSAVE THE KWEEBECS", "Hosted by ThoriumCube", 10, 40, 10);
+            12, new ItemStack(Material.WOODEN_AXE), (player, type, main) -> {
+        SaveTheKweebecs.getPlugin().getPlayerManager().sendToSTKLobby(player);
+        player.sendTitle("§b§lSAVE THE KWEEBECS", "Hosted by SkyNode", 10, 40, 10);
         if(player.isOp()) {
             player.setAllowFlight(true);
             player.setFlying(true);
         }
-    }, true),
-    CREATIVE("Creative", "Build awesome creations with other community members and let your imagination flow!",
-            12, new ItemStack(Material.GRASS_BLOCK), (player, type) -> {
-        SaveTheKweebecs.getPlugin().getPlayerManager().preparePlayer(player, GameMode.CREATIVE);
-        player.teleport(Bukkit.getWorld("creative").getSpawnLocation());
-        player.sendTitle("§a§lCREATIVE", "Hosted by ThoriumCube", 10, 40, 10);
-        player.getInventory().setItem(8, SaveTheKweebecs.getPlugin().getGameSelector());
-
-        player.setAllowFlight(true);
-        player.setFlying(true);
-
-        SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player).setBoard(null);
     }, true);
 
     private final String name;

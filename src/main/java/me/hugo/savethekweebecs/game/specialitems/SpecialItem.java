@@ -268,7 +268,7 @@ public enum SpecialItem {
                         (hasEnoughGold ? "&eClick to buy!" : "&cNot enough gold!"), 30)
                 .hideEnch()
                 .toItemStack())
-                .addClickAction((player, type) -> {
+                .addClickAction((player, type, main) -> {
                     if (hasEnoughGold) {
                         if (player.getInventory().containsAtLeast(abilityItem, 1)) {
                             player.sendMessage("§cYou already have §b" + name + "§c, use it before buying more!");

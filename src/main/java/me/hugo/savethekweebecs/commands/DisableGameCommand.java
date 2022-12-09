@@ -15,6 +15,12 @@ import java.util.List;
 
 public class DisableGameCommand implements CommandExecutor, TabCompleter {
 
+    private final SaveTheKweebecs main;
+
+    public DisableGameCommand(SaveTheKweebecs main) {
+        this.main = main;
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (sender instanceof Player) {
@@ -47,7 +53,7 @@ public class DisableGameCommand implements CommandExecutor, TabCompleter {
                                 players.sendMessage("§cThe game §b" + globalGame.getName() + "§c was closed!");
                                 players.sendMessage("§aRedirecting to §b" + availableGame.getName() + "§a...");
                                 gamePlayer.setCurrentGame(availableGame);
-                                availableGame.getClickAction().execute(players, ClickType.LEFT);
+                                availableGame.getClickAction().execute(players, ClickType.LEFT, main);
                             } else {
                                 players.kickPlayer("§cGame you were on was closed!");
                             }

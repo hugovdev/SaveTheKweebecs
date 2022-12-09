@@ -89,7 +89,7 @@ public enum BannerCosmetic {
                             "§eClick to select!")
                     .toItemStack());
 
-            icon.addClickAction((player, type) -> {
+            icon.addClickAction((player, type, main) -> {
                 BannerCosmetic lastBanner = gamePlayer.getSelectedBanner();
                 gamePlayer.setSelectedBanner(BannerCosmetic.NONE);
 
@@ -112,7 +112,7 @@ public enum BannerCosmetic {
                         "",
                         (isSelected ? "§aSELECTED" : "§eClick to select!"))
                 .toItemStack()).addClickAction(
-                (player, type) -> {
+                (player, type, main) -> {
                     if (isSelected) {
                         player.sendMessage("§b" + name + " §cis already your banner! (Banners only show §bin-game§c)");
                     } else {
@@ -148,7 +148,7 @@ public enum BannerCosmetic {
                             "§eClick to select!")
                     .toItemStack());
 
-            icon.addClickAction((player, type) -> {
+            icon.addClickAction((player, type, main) -> {
                 BannerCosmetic lastBanner = gamePlayer.getSelectedBanner();
                 gamePlayer.setSelectedBanner(BannerCosmetic.NONE);
 
@@ -171,7 +171,7 @@ public enum BannerCosmetic {
                         "",
                         (isSelected ? "§aSELECTED" : "§eClick to select!"))
                 .toItemStack()).addClickAction(
-                (player, type) -> {
+                (player, type, main) -> {
                     if (isSelected) {
                         player.sendMessage("§b" + name + " §cis already your banner! (Banners only show §bin-game§c)");
                     } else {

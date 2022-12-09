@@ -22,6 +22,7 @@ import net.md_5.bungee.api.chat.hover.content.Text;
 import net.skinsrestorer.api.PlayerWrapper;
 import net.skinsrestorer.api.SkinsRestorerAPI;
 import net.skinsrestorer.api.exception.SkinRequestException;
+import net.skinsrestorer.api.property.IProperty;
 import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -42,9 +43,8 @@ public class Game {
     private PlayerManager playerManager;
 
     private GameMap gameMap;
-    private SlimeWorld slimeWorld;
 
-    private SaveTheKweebecs main;
+    private final SaveTheKweebecs main;
 
     private final List<Player> playerList;
     private final List<Player> spectatorList;
@@ -199,7 +199,7 @@ public class Game {
                     .append(this.mapName).color(ChatColor.GREEN).append(" has finished! Wanna see the stats? ").color(ChatColor.YELLOW).append("HOVER").color(ChatColor.YELLOW).bold(true).event(hoverEvent).create());
 
             player.spigot().sendMessage(message);
-            GlobalGame.SAVE_THE_KWEEBECS.getClickAction().execute(player, ClickType.LEFT);
+            GlobalGame.SAVE_THE_KWEEBECS.getClickAction().execute(player, ClickType.LEFT, main);
         }
 
         spectatorList.clear();
@@ -213,7 +213,7 @@ public class Game {
     }
 
     private void loadSlimeWorld(boolean firstTime) {
-        slimeWorld = gameMap.getSlimeWorld().clone(uuid.toString());
+        SlimeWorld slimeWorld = gameMap.getSlimeWorld().clone(uuid.toString());
 
         main.getSlimePlugin().generateWorld(slimeWorld);
         World world = Bukkit.getWorld(uuid.toString());
@@ -361,13 +361,13 @@ public class Game {
         if (gameState == GameState.WAITING || gameState == GameState.STARTING) {
             sendGameMessage("&a" + player.getName() + " &ehas left! (&b" + playerList.size() + "&e/&b" + maxPlayers + "&e)");
 
-            GlobalGame.SAVE_THE_KWEEBECS.getClickAction().execute(player, ClickType.LEFT);
+            GlobalGame.SAVE_THE_KWEEBECS.getClickAction().execute(player, ClickType.LEFT, main);
             updateTeamSelector(false);
         } else if (gameState == GameState.INGAME) {
             if (spectatorList.contains(player)) {
                 spectatorList.remove(player);
                 player.sendMessage("§cYou left the arena!");
-                main.getDefaultGame().getClickAction().execute(player, ClickType.LEFT);
+                main.getDefaultGame().getClickAction().execute(player, ClickType.LEFT, main);
             } else {
                 if (trorkPlayers.size() == 0 || kweebecPlayers.size() == 0) {
                     sendGameMessage("&c&lA team has been eliminated. Game will be restarting...");
@@ -417,7 +417,7 @@ public class Game {
                         "",
                         "&eClick to join!")
                 .toItemStack())
-                .addClickAction((player, type) -> {
+                .addClickAction((player, type, main) -> {
                     if (gameState == GameState.WAITING || gameState == GameState.STARTING) {
                         joinGame(player);
                     } else if (gameState == GameState.INGAME) {
@@ -501,7 +501,7 @@ public class Game {
                 .setLoreWithWrap("&7Kweebecs have to rescue their Kweebec friends who are kidnapped on the trork lands!" +
                         "\n\n&7Players: &f" + kweebecPlayers.size() + "/" + playersPerTeam + "\n\n&eClick to join team!", 35)
                 .setSkullTexture("http://textures.minecraft.net/texture/fa66479997b98874c65f6a08dbfb6c32380fed0aa27af58cb1c66cabed5da281")
-                .toItemStack()).addClickAction((player, type) -> {
+                .toItemStack()).addClickAction((player, type, main) -> {
             if (kweebecPlayers.size() < playersPerTeam && !kweebecPlayers.contains(player)) {
                 trorkPlayers.remove(player);
                 kweebecPlayers.add(player);
@@ -521,7 +521,7 @@ public class Game {
             teamSelectorMenu.setIcon(13, new Icon(new ItemBuilder(Material.STONE_BUTTON, 1)
                     .setName("&aRandom")
                     .setLoreWithWrap("&7Feeling crazy? Join a random team!" + "\n\n&eClick to select!", 35)
-                    .toItemStack()).addClickAction((player, type) -> {
+                    .toItemStack()).addClickAction((player, type, main) -> {
                 trorkPlayers.remove(player);
                 kweebecPlayers.remove(player);
 
@@ -537,7 +537,7 @@ public class Game {
                 .setLoreWithWrap("&7Trorks have to defend their lands from the Kweebecs! Kidnapped Kweebecs are their only food." +
                         "\n\n&7Players: &f" + trorkPlayers.size() + "/" + playersPerTeam + "\n\n&eClick to join team!", 35)
                 .setSkullTexture("http://textures.minecraft.net/texture/ea4f778cd8c8b8bf391e3943409f88afb41ae3d70a93ea74acd2f10123b7de46")
-                .toItemStack()).addClickAction((player, type) -> {
+                .toItemStack()).addClickAction((player, type, main) -> {
             if (trorkPlayers.size() < playersPerTeam && !trorkPlayers.contains(player)) {
                 kweebecPlayers.remove(player);
                 trorkPlayers.add(player);
@@ -773,14 +773,20 @@ public class Game {
                     updateGameIcon();
 
                     for (Player player : new ArrayList<>(getPlayerList())) {
-                        playerManager.getGamePlayer(player).setBoard(getGame());
+                        GamePlayer gamePlayer = playerManager.getGamePlayer(player);
+                        gamePlayer.setBoard(getGame());
 
-                        if (!spectatorList.contains(player))
-                            try {
-                                skinsRestorerAPI.applySkin(new PlayerWrapper(player));
-                            } catch (SkinRequestException e) {
-                                e.printStackTrace();
+                        if (!spectatorList.contains(player)) {
+                            IProperty playerSkin = gamePlayer.getPlayerSkin();
+
+                            if(playerSkin != null) {
+                                skinsRestorerAPI.applySkin(new PlayerWrapper(player), playerSkin);
+                            } else {
+                                try {
+                                    skinsRestorerAPI.applySkin(new PlayerWrapper(player));
+                                } catch (SkinRequestException ignored) {}
                             }
+                        }
                     }
 
                     new BukkitRunnable() {

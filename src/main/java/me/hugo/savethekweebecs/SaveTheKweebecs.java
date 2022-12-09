@@ -41,7 +41,7 @@ import java.util.UUID;
 public class SaveTheKweebecs extends JavaPlugin {
 
     private static SaveTheKweebecs main;
-    private HashMap<UUID, Game> playerGame = new HashMap<>();
+    private final HashMap<UUID, Game> playerGame = new HashMap<>();
 
     private GlobalGame defaultGame;
 
@@ -50,7 +50,7 @@ public class SaveTheKweebecs extends JavaPlugin {
     private ItemStack arenaSelector;
     private ItemStack arenaCreator;
     private ItemStack arenaLeaveItem;
-    private ItemStack gameSelector;
+    private ItemStack backToLobby;
     private ItemStack suitSelector;
 
     private KitManager kitManager;
@@ -68,20 +68,20 @@ public class SaveTheKweebecs extends JavaPlugin {
 
     private SkinsRestorerAPI skinsRestorerAPI;
 
-    private ArrayList<Game> games = new ArrayList<>();
-    private HashMap<String, GameMap> gameMaps = new HashMap<>();
-    private HashMap<NPC, Long> npcInteractionCooldown = new HashMap<>();
+    private final ArrayList<Game> games = new ArrayList<>();
+    private final HashMap<String, GameMap> gameMaps = new HashMap<>();
+    private final HashMap<NPC, Long> npcInteractionCooldown = new HashMap<>();
 
     private MenuHandler arenaSetupMenu;
     private PaginatedGUI arenaSelectorMenu;
 
     @Override
     public void onEnable() {
-        this.main = this;
+        main = this;
 
         this.defaultGame = GlobalGame.SAVE_THE_KWEEBECS;
         this.kitManager = new KitManager();
-        this.playerManager = new PlayerManager();
+        this.playerManager = new PlayerManager(this);
         this.npcManager = new NPCManager();
         this.skinsRestorerAPI = SkinsRestorerAPI.getApi();
         this.abilityManager = new AbilityManager();
@@ -99,8 +99,7 @@ public class SaveTheKweebecs extends JavaPlugin {
         boolean gamesConfigured = true;
 
         try {
-            for (String string : getConfig().getConfigurationSection("games").getKeys(false))
-                gameNames.add(string);
+            gameNames.addAll(getConfig().getConfigurationSection("games").getKeys(false));
         } catch (NullPointerException e) {
             gamesConfigured = false;
             getLogger().info("No games have been configured.");
@@ -121,7 +120,7 @@ public class SaveTheKweebecs extends JavaPlugin {
             /*
             Load listeners
              */
-            getServer().getPluginManager().registerEvents(new PlayerJoin(), this);
+            getServer().getPluginManager().registerEvents(new PlayerJoin(this), this);
             getServer().getPluginManager().registerEvents(new PlayerQuit(), this);
             getServer().getPluginManager().registerEvents(new PlayerInteract(this), this);
             getServer().getPluginManager().registerEvents(new CancelledEvents(this), this);
@@ -129,13 +128,15 @@ public class SaveTheKweebecs extends JavaPlugin {
             getServer().getPluginManager().registerEvents(new ChatEvent(), this);
             getServer().getPluginManager().registerEvents(new SpecialItemEvents(), this);
 
+            this.getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
+
             /*
             Load commands
              */
 
             EnableGameCommand enableGameCommand = new EnableGameCommand();
             DefaultGameCommand defaultGameCommand = new DefaultGameCommand();
-            DisableGameCommand disableGameCommand = new DisableGameCommand();
+            DisableGameCommand disableGameCommand = new DisableGameCommand(this);
 
             getCommand("defaultgame").setExecutor(defaultGameCommand);
             getCommand("defaultgame").setTabCompleter(defaultGameCommand);
@@ -167,7 +168,7 @@ public class SaveTheKweebecs extends JavaPlugin {
             wb.setSize(350);
 
             new GameControllerTask(this).runTaskTimer(this, 0L, 20L);
-            new ScoreboardAnimationTask("THANKMAS").runTaskTimerAsynchronously(this, 0L, 1L);
+            new ScoreboardAnimationTask("THANKMAS 2022").runTaskTimerAsynchronously(this, 0L, 1L);
         }
     }
 
@@ -229,8 +230,8 @@ public class SaveTheKweebecs extends JavaPlugin {
         this.suitSelector = new ItemBuilder(Material.CHEST).setName("&aSuit Selector &7(Right Click)")
                 .setLoreWithWrap("&7Select suits from people on the community and disguise yourself!\n\n&eClick to open!", 35).toItemStack();
 
-        this.gameSelector = new ItemBuilder(Material.NETHER_STAR).setName("&aGame Selector &7(Right Click)")
-                .setLoreWithWrap("&7Open a menu which lets you choose the game you want to play!\n\n&eClick to open!", 35).toItemStack();
+        this.backToLobby = new ItemBuilder(Material.RED_BED).setName("&cBack to Lobby &7(Right Click)")
+                .setLoreWithWrap("&7Go back to lobby!\n\n&eClick to use!", 35).toItemStack();
 
         this.teamSelector = new ItemBuilder(Material.NETHER_STAR).setName(ColorUtil.createGradFromStrings("Team Selector", false, "12B8D3", "4570D3") + " &7(Right Click)")
                 .setLoreWithWrap("&7Choose the team you want to play in! Trork or Kweebec.\n\n" +
@@ -329,8 +330,8 @@ public class SaveTheKweebecs extends JavaPlugin {
         return worldPropertyManager;
     }
 
-    public ItemStack getGameSelector() {
-        return gameSelector;
+    public ItemStack getBackToLobby() {
+        return backToLobby;
     }
 
     public void setWorldPropertyManager(WorldPropertyManager worldPropertyManager) {

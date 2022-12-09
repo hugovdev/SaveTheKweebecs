@@ -2,6 +2,8 @@ package me.hugo.savethekweebecs.events;
 
 import me.hugo.savethekweebecs.SaveTheKweebecs;
 import me.hugo.savethekweebecs.game.Game;
+import me.hugo.savethekweebecs.player.GamePlayer;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,6 +20,14 @@ public class PlayerQuit implements Listener {
 
         if (game != null) game.leaveGame(player);
         SaveTheKweebecs.getPlugin().getPlayerManager().removeGamePlayer(player);
+
+        for (GamePlayer gamePlayer : SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayers()) {
+            Player updatingPlayer = gamePlayer.getPlayer();
+            Game gameFromPlayer = SaveTheKweebecs.getPlugin().getPlayerGame(updatingPlayer);
+
+            if (gameFromPlayer == null)
+                gamePlayer.getPlayerBoard().set("Players: §a" + (Bukkit.getOnlinePlayers().size() - 1), 3);
+        }
     }
 
 }

@@ -1,10 +1,10 @@
 package me.hugo.savethekweebecs.events;
 
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 import me.hugo.savethekweebecs.SaveTheKweebecs;
 import me.hugo.savethekweebecs.game.Game;
 import me.hugo.savethekweebecs.game.GameState;
-import me.hugo.savethekweebecs.game.specialitems.SpecialItem;
-import me.hugo.savethekweebecs.game.specialitems.SpecialItemAction;
 import me.hugo.savethekweebecs.globalgame.GlobalGame;
 import me.hugo.savethekweebecs.player.GamePlayer;
 import me.hugo.savethekweebecs.utils.gui.ClickAction;
@@ -16,16 +16,12 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 
 public class PlayerInteract implements Listener {
 
@@ -68,9 +64,15 @@ public class PlayerInteract implements Listener {
         } else if (itemOnHand.isSimilar(main.getSuitSelector())) {
             event.setCancelled(true);
             main.getPlayerManager().getGamePlayer(player).getSuitMenu().open(player);
-        } else if (itemOnHand.isSimilar(main.getGameSelector())) {
+        } else if (itemOnHand.isSimilar(main.getBackToLobby())) {
             event.setCancelled(true);
-            player.openInventory(main.getPlayerManager().getGamePlayer(player).getGameSelectorMenu().getInventory());
+
+            ByteArrayDataOutput out = ByteStreams.newDataOutput();
+
+            out.writeUTF("Connect");
+            out.writeUTF("lobby_1");
+
+            player.sendPluginMessage(main, "BungeeCord", out.toByteArray());
         } else if (itemOnHand.isSimilar(main.getArenaLeaveItem())) {
             event.setCancelled(true);
             Game game = main.getPlayerGame(player);
@@ -179,7 +181,7 @@ public class PlayerInteract implements Listener {
                 if (icon == null) return;
 
                 for (ClickAction clickAction : icon.getClickActions()) {
-                    clickAction.execute(player, event.getClick());
+                    clickAction.execute(player, event.getClick(), main);
                 }
             }
         }
