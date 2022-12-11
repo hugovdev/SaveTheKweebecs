@@ -22,6 +22,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -81,7 +82,7 @@ public class GamePlayer {
         this.suitMenu = new PaginatedGUI(9 * 5, SaveTheKweebecs.getPlugin().getPlayerManager().SUIT_MENU_INDICATOR, "Suit Wardrobe", PaginatedGUI.PageFormat.ONE_ROW_WITHOUT_SIDES, null);
 
         for (BannerCosmetic banner : BannerCosmetic.values()) this.bannerMenu.addItem(banner.getIcon(this));
-        
+
         for (Suit suit : Suit.values()) {
             Icon suitIcon = (this.suit == suit ? suit.SELECTED_ICON : suit.NOT_SELECTED_ICON);
             Icon toggleIcon = (this.suit == suit ? suit.SELECTED_TOGGLE : suit.NOT_SELECTED_TOGGLE);
@@ -90,8 +91,14 @@ public class GamePlayer {
             this.suitMenu.setItem(toggleIcon, i[0], i[1] + 9);
         }
 
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                playerSkin = main.getSkinsRestorerAPI().getProfile(player.getUniqueId().toString());
+            }
+        }.runTaskAsynchronously(main);
+
         this.currentGame = SaveTheKweebecs.getPlugin().getDefaultGame();
-        this.playerSkin = main.getSkinsRestorerAPI().getProfile(this.player.getUniqueId().toString());
 
         this.gameSelectorMenu = new MenuHandler(9 * 3, "Game Selector", "", null);
         updateGameSelector();

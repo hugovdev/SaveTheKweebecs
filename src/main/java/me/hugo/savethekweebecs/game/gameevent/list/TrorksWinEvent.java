@@ -4,11 +4,13 @@ import me.hugo.savethekweebecs.SaveTheKweebecs;
 import me.hugo.savethekweebecs.game.Game;
 import me.hugo.savethekweebecs.game.GameState;
 import me.hugo.savethekweebecs.game.gameevent.GameEventAction;
+import me.hugo.savethekweebecs.player.GamePlayer;
 import me.hugo.savethekweebecs.utils.InstantFirework;
 import me.hugo.savethekweebecs.utils.npc.NPC;
 import net.skinsrestorer.api.PlayerWrapper;
 import net.skinsrestorer.api.SkinsRestorerAPI;
 import net.skinsrestorer.api.exception.SkinRequestException;
+import net.skinsrestorer.api.property.IProperty;
 import org.bukkit.Color;
 import org.bukkit.FireworkEffect;
 import org.bukkit.Sound;
@@ -29,14 +31,20 @@ public class TrorksWinEvent extends GameEventAction {
         SkinsRestorerAPI skinsRestorerAPI = SaveTheKweebecs.getPlugin().getSkinsRestorerAPI();
 
         for (Player player : new ArrayList<>(game.getPlayerList())) {
-            SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player).setBoard(game);
+            GamePlayer gamePlayer = SaveTheKweebecs.getPlugin().getPlayerManager().getGamePlayer(player);
+            gamePlayer.setBoard(game);
 
-            if (!game.getSpectatorList().contains(player))
-                try {
-                    skinsRestorerAPI.applySkin(new PlayerWrapper(player));
-                } catch (SkinRequestException e) {
-                    e.printStackTrace();
+            if (!game.getSpectatorList().contains(player)) {
+                IProperty playerSkin = gamePlayer.getPlayerSkin();
+
+                if(playerSkin != null) {
+                    skinsRestorerAPI.applySkin(new PlayerWrapper(player), playerSkin);
+                } else {
+                    try {
+                        skinsRestorerAPI.applySkin(new PlayerWrapper(player));
+                    } catch (SkinRequestException ignored) {}
                 }
+            }
         }
 
         for (NPC npc : game.getRemainingKweebecs()) npc.destroyNPC(game.getPlayerList());
